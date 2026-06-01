@@ -26,8 +26,10 @@ from diffbot.errors import APIError
 from langchain_core.tools import tool
 
 from langchain_diffbot import (
+    DiffbotDQLProbeTool,
     DiffbotExtractTool,
     DiffbotKnowledgeGraphRetriever,
+    DiffbotOntologyTool,
     DiffbotWebSearchRetriever,
 )
 
@@ -67,6 +69,50 @@ def _web_retriever() -> DiffbotWebSearchRetriever:
 @lru_cache(maxsize=1)
 def _extract_tool() -> DiffbotExtractTool:
     return DiffbotExtractTool()
+
+
+@lru_cache(maxsize=1)
+def _ontology_tool() -> DiffbotOntologyTool:
+    # Cached so the fetched ontology is reused across the whole agent run.
+    return DiffbotOntologyTool()
+
+
+@lru_cache(maxsize=1)
+def _probe_tool() -> DiffbotDQLProbeTool:
+    return DiffbotDQLProbeTool()
+
+
+@tool
+def inspect_ontology(
+    op: str, name: str | None = None, search: str | None = None
+) -> list[str] | dict[str, str]:
+    """Inspect the Diffbot KG schema so you can write DQL with real field paths.
+
+    Call this BEFORE guessing field names. Ops:
+      - `types` / `composites` / `enums` / `taxonomies` — list available names.
+      - `fields` — fields of a type or composite; pass `name` (e.g. "Organization",
+        "Location"). Optionally pass `search` (regex) to filter.
+      - `taxonomy` — values of a taxonomy; pass `name` (e.g. "OrganizationCategory"),
+        optionally `search`.
+      - `enum` — values of an enum; pass `name` (e.g. "Language").
+      - `search` — regex over every name in the ontology; pass the pattern as `name`.
+
+    Returns a list of strings, or `{"error": ...}` if the name was wrong (list the
+    valid names with the matching list op, then retry).
+    """
+    return _ontology_tool().invoke({"op": op, "name": name, "search": search})
+
+
+@tool
+def probe_dql(queries: list[str]) -> list[dict]:
+    """Probe DQL variants in parallel and get the hit count for each (no entity data).
+
+    Use this to sanity-check a query's selectivity before running it with
+    `search_kg`: if a variant returns 0 hits it's too narrow; if it returns a
+    huge number it's too broad. Pass several variants at once to compare them in
+    a single round-trip. Returns `[{"query": ..., "hits": N}, ...]`.
+    """
+    return _probe_tool().invoke({"queries": queries})
 
 
 @tool

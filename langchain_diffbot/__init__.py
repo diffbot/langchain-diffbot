@@ -16,20 +16,24 @@ from langchain_diffbot.retrievers import (
     DiffbotWebSearchRetriever,
 )
 from langchain_diffbot.tools import (
+    DiffbotDQLProbeTool,
     DiffbotEntitiesTool,
     DiffbotExtractTool,
     DiffbotKnowledgeGraphTool,
+    DiffbotOntologyTool,
     DiffbotWebSearchTool,
 )
 
 __all__ = [
     "ChatDiffbot",
     "DiffbotCrawlLoader",
+    "DiffbotDQLProbeTool",
     "DiffbotEntitiesTool",
     "DiffbotExtractLoader",
     "DiffbotExtractTool",
     "DiffbotKnowledgeGraphRetriever",
     "DiffbotKnowledgeGraphTool",
+    "DiffbotOntologyTool",
     "DiffbotWebSearchRetriever",
     "DiffbotWebSearchTool",
 ]

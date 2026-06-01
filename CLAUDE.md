@@ -5,7 +5,7 @@ LangChain integration package for the Diffbot APIs (Knowledge Graph, Extract, We
 ## Stack
 
 - **Build/deps**: `uv` (not Poetry/pip). `pyproject.toml` is PEP 621 with `hatchling` as the build backend. Dependency groups (`test`, `lint`, `typing`) are declared under `[dependency-groups]` and invoked via `uv run --group <name> ...`.
-- **HTTP / Diffbot transport**: the official [`diffbot-python`](https://github.com/diffbot/diffbot-python) SDK. It wraps `httpx` under the hood, so `respx` continues to work for unit tests — mocks target the real upstream URLs (KG: `https://kg.diffbot.com/kg/v3/dql`, web search: `https://llm.diffbot.com/api/v1/web_search`, extract: `https://api.diffbot.com/v3/analyze`, ask: `https://llm.diffbot.com/rag/v1/chat/completions`, NLP: `https://nl.diffbot.com/v1/`, crawl: `https://api.diffbot.com/v3/crawl`). Until `diffbot-python` is on PyPI, the dep is resolved from GitHub `main` via `[tool.uv.sources]`.
+- **HTTP / Diffbot transport**: the official [`diffbot-python`](https://github.com/diffbot/diffbot-python) SDK. It wraps `httpx` under the hood, so `respx` continues to work for unit tests — mocks target the real upstream URLs (KG: `https://kg.diffbot.com/kg/v3/dql`, web search: `https://llm.diffbot.com/api/v1/web_search`, extract: `https://api.diffbot.com/v3/analyze`, ask: `https://llm.diffbot.com/rag/v1/chat/completions`, NLP: `https://nl.diffbot.com/v1/`, crawl: `https://api.diffbot.com/v3/crawl`, ontology: `https://kg.diffbot.com/kg/ontology`). Until `diffbot-python` is on PyPI, the dep is resolved during local dev from the sibling `../diffbot-python` checkout via `[tool.uv.sources]` (same pattern as `langchain-core`) — release builds use the published version.
 - **Models**: `pydantic` v2.
 - **LangChain**: targets `langchain-core >=1.0,<2.0`. During local dev `langchain-core` and `langchain-tests` are resolved from a sibling `../langchain/` checkout via `[tool.uv.sources]` — release builds use the published versions.
 - **Test runner**: `pytest` with `asyncio_mode = "auto"`.
@@ -38,9 +38,18 @@ The methods are short enough (typically one SDK call inside a context manager) t
 
 `DiffbotKnowledgeGraphRetriever` and `DiffbotWebSearchRetriever` accept `fields` (metadata allowlist), `content_fields` (priority list for `page_content`), and `document_mapper` (full override). Diffbot KG entities and web-search results can run thousands of tokens each — without shaping, a single retrieval can blow past LLM input limits when fed into a tool call. Defaults preserve everything; agent-style users are expected to pass `fields=[...]`.
 
+### DQL authoring tools: ontology + probe
+
+To let an agent build valid DQL on the fly (rather than guessing field names), two tools wrap the SDK's DQL-authoring helpers:
+
+- `DiffbotOntologyTool` — navigates the KG ontology (`Diffbot.dql_fetch_ontology()` → `diffbot.Ontology`). It fetches the ontology once over HTTP and caches the `Ontology` in memory on the tool instance (a `PrivateAttr`) for the rest of its lifetime — the caching policy is the consumer's, not the SDK's. Ops mirror the `db dql ontology` CLI: `types`/`composites`/`enums`/`taxonomies`/`fields`/`taxonomy`/`enum`/`search`.
+- `DiffbotDQLProbeTool` — wraps `Diffbot.dql_parallel()` to probe query variants at `size=0` (hit counts only), so an agent can check selectivity before committing.
+
+The intended agent loop is **introspect (ontology) → probe → run (`DiffbotKnowledgeGraphTool`) → refine**; `examples/company_research` demonstrates it end to end.
+
 ### Admin / utility SDK methods are not wrapped
 
-Methods like `crawl_list_jobs`, `crawl_get_job`, `crawl_delete_job`, `dql_parallel`, and `dql_refresh_ontology` don't fit cleanly as LangChain primitives. We don't wrap them, but since every component exposes `.client` / `.async_client`, users can reach them directly.
+Methods like `crawl_list_jobs`, `crawl_get_job`, `crawl_delete_job`, and `dql_refresh_ontology` don't fit cleanly as LangChain primitives. We don't wrap them, but since every component exposes `.client` / `.async_client`, users can reach them directly.
 
 ## Commands
 
@@ -61,7 +70,7 @@ langchain_diffbot/
 ├── chat_models.py         # ChatDiffbot (wraps `ask`)
 ├── document_loaders.py    # DiffbotExtractLoader, DiffbotCrawlLoader
 ├── retrievers.py          # DiffbotKnowledgeGraphRetriever, DiffbotWebSearchRetriever
-├── tools.py               # DiffbotExtractTool, DiffbotWebSearchTool, DiffbotEntitiesTool, DiffbotKnowledgeGraphTool
+├── tools.py               # DiffbotExtractTool, DiffbotWebSearchTool, DiffbotEntitiesTool, DiffbotKnowledgeGraphTool, DiffbotOntologyTool, DiffbotDQLProbeTool
 └── py.typed               # PEP 561 marker
 tests/
 ├── unit_tests/            # no network — use respx to mock the SDK's httpx calls
