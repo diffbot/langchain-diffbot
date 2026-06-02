@@ -68,3 +68,17 @@ Defaults to `anthropic:claude-haiku-4-5` because a multi-step agent loop on a fr
 ```bash
 COMPANY_RESEARCH_MODEL=anthropic:claude-sonnet-4-6 python -m company_research "..."
 ```
+
+## Web app
+
+[`dql_explorer/`](./dql_explorer) is a browser UI for the DQL-authoring loop:
+type a question in plain English, and an agent inspects the ontology, probes
+query variants, writes the DQL, and the results come back as a table. It's a
+FastAPI backend serving a React + TypeScript (Vite) frontend, with optional
+LangSmith tracing. See [`dql_explorer/README.md`](./dql_explorer/README.md) for
+setup — in short:
+
+```bash
+cd dql_explorer/web && pnpm install && pnpm build && cd ..
+uv run --extra examples python -m dql_explorer   # then open http://127.0.0.1:8000
+```

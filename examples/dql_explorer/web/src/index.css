@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+@layer base {
+  /* Let the browser theme native controls (scrollbars, inputs) to match. */
+  :root {
+    color-scheme: light dark;
+  }
+  body {
+    @apply bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100;
+  }
+}

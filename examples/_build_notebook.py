@@ -83,7 +83,8 @@ md("""## 3. Knowledge Graph retrieval
 | Exact match | `name:"Diffbot"` |
 | Nested fields | `location.city.name:"Austin"` |
 | AND (combine with spaces) | `type:Organization industries:"Robotics"` |
-| Sort | `sortBy:nbEmployees desc` |""")
+| Sort ascending | `sortBy:nbEmployees` |
+| Sort descending | `revSortBy:nbEmployees` (no `desc` keyword) |""")
 
 code("""from langchain_diffbot import DiffbotKnowledgeGraphRetriever
 
@@ -152,7 +153,7 @@ def mapper(entity: dict) -> Document:
 
 retriever = DiffbotKnowledgeGraphRetriever(k=3, document_mapper=mapper)
 
-for d in retriever.invoke('type:Organization industries:"Biotechnology" sortBy:nbEmployees desc'):
+for d in retriever.invoke('type:Organization industries:"Biotechnology" revSortBy:nbEmployees'):
     print(d.metadata, "—", d.page_content[:120])""")
 
 md("""## 5. Async is native
@@ -322,7 +323,8 @@ def search_kg(dql_query: str) -> list[dict]:
     \"\"\"Search the Diffbot Knowledge Graph with a DQL query.
 
     DQL: `type:Organization`, `name:"Diffbot"`, `location.city.name:"Austin"`,
-    `sortBy:nbEmployees desc`. AND with spaces. Combine for filtered lookup.
+    `revSortBy:nbEmployees` (descending; use `sortBy:` for ascending). AND with
+    spaces. Combine for filtered lookup.
     \"\"\"
     try:
         docs = _kg().invoke(dql_query)

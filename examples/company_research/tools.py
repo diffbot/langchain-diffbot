@@ -125,12 +125,13 @@ def search_kg(dql_query: str) -> list[dict]:
     - Exact match: `name:"Diffbot"`
     - Nested fields use dots: `location.city.name:"Austin"`
     - Combine filters with spaces (AND): `type:Organization industries:"Robotics"`
-    - Sort with `sortBy:<field> desc` (e.g. `sortBy:nbEmployees desc`)
+    - Sort ascending with `sortBy:<field>`, descending with `revSortBy:<field>`
+      (e.g. `revSortBy:nbEmployees`). There is no `desc` keyword.
 
     Examples:
         - `type:Organization location.city.name:"Austin" industries:"Robotics"`
         - `type:Person employments.{employer.name:"Diffbot" isCurrent:true}`
-        - `type:Article tags.label:"Artificial Intelligence" sortBy:date desc`
+        - `type:Article tags.label:"Artificial Intelligence" revSortBy:date`
 
     Returns a list of entity dicts. Each entity has `summary` (description/summary
     text), `id`, `type`, `name`, and a few projected fields like `homepageUri`,
