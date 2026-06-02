@@ -11,3 +11,6 @@ __pycache__/
 dist/
 build/
 .env
+
+# Claude Code harness runtime artifacts
+**/.claude/scheduled_tasks.lock
