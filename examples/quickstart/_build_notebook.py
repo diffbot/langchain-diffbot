@@ -1,7 +1,7 @@
-"""Regenerate examples/quickstart.ipynb from cell definitions in this file.
+"""Regenerate examples/quickstart/quickstart.ipynb from cell definitions in this file.
 
 Run once whenever you change a cell. Run with:
-    uv run python examples/_build_notebook.py
+    uv run python examples/quickstart/_build_notebook.py
 """
 
 from __future__ import annotations

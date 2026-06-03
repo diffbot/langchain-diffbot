@@ -1,20 +1,34 @@
-import type { QueryResponse } from "./types";
+import type {
+  DashboardRequest,
+  DashboardResponse,
+  QueryResponse,
+} from "./types";
 
-export async function postQuery(question: string): Promise<QueryResponse> {
-  const res = await fetch("/api/query", {
+async function postJSON<T>(url: string, body: unknown): Promise<T> {
+  const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ question }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) {
     let detail = res.statusText;
     try {
-      const body = await res.json();
-      detail = body.detail ?? detail;
+      const parsed = await res.json();
+      detail = parsed.detail ?? detail;
     } catch {
       /* response wasn't JSON; keep the status text */
     }
     throw new Error(`Request failed (${res.status}): ${detail}`);
   }
   return res.json();
+}
+
+export function postQuery(question: string): Promise<QueryResponse> {
+  return postJSON<QueryResponse>("/api/query", { question });
+}
+
+export function postDashboard(
+  req: DashboardRequest,
+): Promise<DashboardResponse> {
+  return postJSON<DashboardResponse>("/api/dashboard", req);
 }

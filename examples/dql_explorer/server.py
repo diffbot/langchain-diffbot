@@ -23,6 +23,7 @@ from langchain_core.tracers.context import collect_runs
 from pydantic import BaseModel, Field
 
 from dql_explorer.agent import DQLPlan, build_dql_agent
+from dql_explorer.dashboard import build_dashboard, default_range
 from dql_explorer.projection import build_rows
 from langchain_diffbot import DiffbotKnowledgeGraphTool
 
@@ -54,6 +55,20 @@ class QueryRequest(BaseModel):
 
     question: str = Field(description="Plain-English question.")
     k: int = Field(default=DEFAULT_K, ge=1, le=100, description="Max rows to fetch.")
+
+
+class DashboardRequest(BaseModel):
+    """Body for `POST /api/dashboard`. Omitted fields fall back to defaults."""
+
+    min_employees: int = Field(
+        default=4000, ge=0, le=1_000_000, description="Minimum company headcount."
+    )
+    date_from: str | None = Field(
+        default=None, description="ISO start date (defaults to 3 months ago)."
+    )
+    date_to: str | None = Field(
+        default=None, description="ISO end date (defaults to today)."
+    )
 
 
 def _extract_steps(messages: list[Any]) -> list[dict[str, Any]]:
@@ -150,9 +165,38 @@ async def query(req: QueryRequest) -> dict[str, Any]:
     }
 
 
+@app.post("/api/dashboard")
+async def dashboard(req: DashboardRequest) -> dict[str, Any]:
+    """Build the M&A / IPO dashboard for a headcount floor and date window."""
+    default_from, default_to = default_range()
+    return await build_dashboard(
+        min_employees=req.min_employees,
+        date_from=req.date_from or default_from,
+        date_to=req.date_to or default_to,
+    )
+
+
+# In dev (`./dev.sh` sets DQL_EXPLORER_RELOAD=1) the live UI is the Vite server
+# on :5173 — the `dist/` this backend would serve is the last `pnpm build` and is
+# stale the moment you edit any frontend file. Bounce :8000 over to Vite so an
+# accidental reload of :8000 doesn't show old code.
+_DEV = os.environ.get("DQL_EXPLORER_RELOAD") == "1"
+_VITE_URL = os.environ.get("DQL_EXPLORER_VITE_URL", "http://localhost:5173/")
+
 # Serve the built SPA from `/` when it exists; otherwise a build reminder. Mount
 # last so the /api route above takes precedence.
-if _DIST_DIR.is_dir():
+if _DEV:
+
+    @app.get("/", response_class=HTMLResponse)
+    def _dev_redirect() -> str:
+        return (
+            f'<!doctype html><meta http-equiv="refresh" content="0; url={_VITE_URL}">'
+            f"<p>Dev mode: the live UI is the Vite dev server. Redirecting to "
+            f'<a href="{_VITE_URL}">{_VITE_URL}</a> — open that, not :8000 '
+            f"(:8000 serves the last <code>pnpm build</code>, which is stale during dev).</p>"
+        )
+
+elif _DIST_DIR.is_dir():
     app.mount("/", StaticFiles(directory=str(_DIST_DIR), html=True), name="spa")
 else:
 

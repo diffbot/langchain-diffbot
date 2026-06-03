@@ -1,8 +1,14 @@
 # DQL Explorer
 
-A small web app: type a question in plain English, and a LangChain agent turns it
-into a valid [DQL](https://docs.diffbot.com/reference/dql-quickstart) query, runs
-it against the Diffbot Knowledge Graph, and shows the results as a table.
+A small web app with two tabs over the Diffbot Knowledge Graph:
+
+- **M&A / IPO Dashboard** — a parameterized view of recent acquisitions and IPOs,
+  broken down by industry, geography, and time with donut/bar charts.
+- **DQL Builder** — type a question in plain English, and a LangChain agent turns
+  it into a valid [DQL](https://docs.diffbot.com/reference/dql-quickstart) query,
+  runs it, and shows the results as a table.
+
+## DQL Builder
 
 It demonstrates the package's **DQL-authoring loop** end to end:
 `DiffbotOntologyTool` (look up real field paths) → `DiffbotDQLProbeTool` (check
@@ -13,6 +19,21 @@ The agent only *authors* the query and picks the columns (a structured
 `DQLPlan`); the **server** runs the DQL and builds the table, so the rows are
 always real KG data — and the exact query is shown in the UI.
 
+## M&A / IPO Dashboard
+
+The opposite shape from the DQL Builder: instead of an agent authoring one-off
+queries, the server runs **two fixed DQL templates** — recent acquisitions
+(`isAcquired:true acquiredBy.date>=…`) and recent IPOs (`ipo.date>=…`) —
+parameterized by a minimum-headcount floor (4,000 by default) and a date window
+(the trailing 3 months by default). It then reduces the returned `Organization`
+entities in Python (`dashboard.py`) into chart-ready breakdowns by industry,
+month, country, and stock exchange, plus a largest-acquisitions table.
+
+No model is involved — it's a deterministic roll-up of real KG data, and the two
+queries are shown in the UI ("DQL behind this dashboard"). Tune the size floor
+and date range, then **Refresh** to re-query. The charts are dependency-free SVG
+(`charts.tsx`), so the example pulls in no charting library.
+
 ## Prerequisites
 
 - `DIFFBOT_API_TOKEN` and `ANTHROPIC_API_KEY` in the environment. Copy
@@ -21,36 +42,21 @@ always real KG data — and the exact query is shown in the UI.
 - Python deps: from the repo root, `uv sync --extra examples`.
 - [pnpm](https://pnpm.io/) and Node for the frontend.
 
-## Run it (single port)
+## Run it
 
-Build the React app once, then run the server — it serves both the API and the
-built SPA on one port:
-
-```bash
-cd examples/dql_explorer/web
-pnpm install
-pnpm build
-cd ..
-uv run --extra examples python -m dql_explorer
-# open http://127.0.0.1:8000
-```
-
-Override host/port with `DQL_EXPLORER_HOST` / `DQL_EXPLORER_PORT`.
-
-## Develop (hot reload)
-
-Run the backend and the Vite dev server side by side. Vite serves the UI on
-:5173 and proxies `/api` to the backend on :8000:
+One script does everything — installs frontend deps, starts the FastAPI backend
+(:8000) and the Vite dev server (:5173) in parallel, with live reload on both.
+Run it from anywhere; Ctrl-C stops both:
 
 ```bash
-# terminal 1 — backend
-uv run --extra examples python -m dql_explorer
-
-# terminal 2 — frontend with hot reload
-cd examples/dql_explorer/web
-pnpm dev
-# open the URL Vite prints (http://localhost:5173)
+examples/dql_explorer/dev.sh
+# then open the URL Vite prints (http://localhost:5173)
 ```
+
+Open **:5173**, not :8000 — Vite serves the live-reloading UI and proxies `/api`
+to the backend. Edits to the Python or the React source reload live.
+
+Override the backend host/port with `DQL_EXPLORER_HOST` / `DQL_EXPLORER_PORT`.
 
 ## Model
 
@@ -85,8 +91,15 @@ When unset, the app works exactly the same — just no trace link.
 ```
 dql_explorer/
 ├── agent.py        # create_agent + DQLPlan structured output + ontology/probe tools
-├── server.py       # FastAPI: POST /api/query, serves the built SPA
+├── dashboard.py    # M&A/IPO DQL templates + Python roll-up into chart breakdowns
+├── server.py       # FastAPI: POST /api/query, POST /api/dashboard, serves the SPA
 ├── projection.py   # dot-path projection of KG entities into table rows
 ├── __main__.py     # `python -m dql_explorer` → uvicorn
+├── dev.sh          # one-command live-reload dev (backend + Vite together)
 └── web/            # React + TypeScript + Vite frontend (pnpm)
+    └── src/
+        ├── App.tsx        # tab shell (Dashboard / DQL Builder)
+        ├── Explorer.tsx   # DQL Builder: plain-English → DQL table
+        ├── Dashboard.tsx  # M&A/IPO controls + charts
+        └── charts.tsx     # dependency-free SVG donut / bar charts
 ```

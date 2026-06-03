@@ -170,7 +170,7 @@ retriever = DiffbotKnowledgeGraphRetriever(client=shared, k=5)
 
 The [`examples/`](./examples) folder has runnable demos:
 
-- [`examples/quickstart.ipynb`](./examples/quickstart.ipynb) — full tour: every public class, output shaping, async, and a multi-tool research agent.
+- [`examples/quickstart/`](./examples/quickstart) — full tour: every public class, output shaping, async, and a multi-tool research agent.
 - [`examples/company_research/`](./examples/company_research) — the same multi-tool agent as a one-shot CLI: `cd examples && python -m company_research "your question"`. The agent combines KG search + web search + URL extract.
 
 Both need `langchain` + `langchain-anthropic` on top of the base package — install the extra:
