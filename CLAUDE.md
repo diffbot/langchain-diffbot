@@ -61,6 +61,27 @@ make test            # unit tests
 make test_integration  # integration tests (needs DIFFBOT_API_TOKEN)
 ```
 
+## Releasing
+
+PyPI / TestPyPI tokens live in the macOS Keychain so the Makefile pulls them automatically — no plaintext on disk, no shell-history leaks. First-time (or post-rotation) setup:
+
+```
+make set-token-testpypi    # prompts; input hidden as you paste (bash read -rsp)
+make set-token-pypi        # same, for real PyPI
+```
+
+Each target reads with hidden input, overwrites any existing entry, and keeps the token out of `make` output and shell history. Per-version flow:
+
+```
+make bump-patch            # 0.1.0 → 0.1.1  (or bump-minor / bump-major)
+make release-test          # publish to TestPyPI
+make verify-release-test   # install from TestPyPI in a throwaway venv
+make release               # publish to real PyPI (prompts to type the version)
+make verify-release        # install from PyPI in a throwaway venv
+```
+
+`release-test` / `release` refuse to publish if the current `pyproject.toml` version is already on the target index, so the loop is always "bump → release-test → verify → release → verify". PyPI never allows re-uploading a version. To rotate a token, revoke the old one at https://pypi.org/manage/account/token/ (or the TestPyPI equivalent) and re-run the matching `set-token-*` target — it overwrites the Keychain entry.
+
 ## Layout
 
 ```

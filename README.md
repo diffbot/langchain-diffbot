@@ -184,38 +184,6 @@ uv sync --all-groups
 uv run pytest tests/unit_tests
 ```
 
-## Releasing
-
-Tokens are stored in macOS Keychain so the Makefile can pull them automatically — no plaintext on disk, no shell-history leaks. First-time setup:
-
-```bash
-make set-token-testpypi    # prompts; input is hidden as you paste
-make set-token-pypi        # same, for real PyPI
-```
-
-Both targets read with `bash read -rsp` (hidden input), overwrite any existing entry, and never put the token in `make` output or shell history. Re-run either one any time you rotate a token.
-
-Then the release flow per version:
-
-```bash
-# 1. Bump the version (edits pyproject.toml in place via `uv version --bump`)
-make bump-patch    # 0.1.0 → 0.1.1
-# or: make bump-minor   # 0.1.0 → 0.2.0
-# or: make bump-major   # 0.1.0 → 1.0.0
-
-# 2. Publish to TestPyPI and verify installable
-make release-test
-make verify-release-test
-
-# 3. Publish to real PyPI (prompts for the version to confirm)
-make release
-make verify-release
-```
-
-`make release-test` and `make release` will refuse to publish if the current `pyproject.toml` version is already on the target index — so the workflow is "bump → release-test → verify → release → verify".
-
-To rotate: revoke the old token at https://pypi.org/manage/account/token/ (or the TestPyPI equivalent), then run `make set-token-pypi` / `make set-token-testpypi` again — it overwrites the existing Keychain entry without prompting.
-
 Integration tests hit the live Diffbot API and require `DIFFBOT_API_TOKEN`:
 
 ```bash
