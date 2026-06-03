@@ -92,7 +92,7 @@ verify-release-test:
 	  uv pip install --quiet --python $$TMP/.venv/bin/python \
 	    --index-url https://test.pypi.org/simple/ \
 	    --extra-index-url https://pypi.org/simple/ \
-	    "diffbot-python @ git+https://github.com/diffbot/diffbot-python" \
+	    "diffbot-python" \
 	    "langchain-diffbot==$$VERSION" && \
 	  (cd $$TMP && $$TMP/.venv/bin/python -c "from langchain_diffbot import DiffbotKnowledgeGraphRetriever; print('TestPyPI install OK:', DiffbotKnowledgeGraphRetriever.__name__)") && \
 	  rm -rf $$TMP
@@ -102,7 +102,7 @@ verify-release:
 	  TMP=$$(mktemp -d) && \
 	  uv venv --python 3.12 $$TMP/.venv >/dev/null 2>&1 && \
 	  uv pip install --quiet --python $$TMP/.venv/bin/python \
-	    "diffbot-python @ git+https://github.com/diffbot/diffbot-python" \
+	    "diffbot-python" \
 	    "langchain-diffbot==$$VERSION" && \
 	  (cd $$TMP && $$TMP/.venv/bin/python -c "from langchain_diffbot import DiffbotKnowledgeGraphRetriever; print('PyPI install OK:', DiffbotKnowledgeGraphRetriever.__name__)") && \
 	  rm -rf $$TMP

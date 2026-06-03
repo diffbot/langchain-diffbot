@@ -40,8 +40,8 @@ examples = [
 
 [project.urls]
 Homepage = "https://www.diffbot.com/"
-Repository = "https://github.com/shixish/langchain-diffbot"
-Issues = "https://github.com/shixish/langchain-diffbot/issues"
+Repository = "https://github.com/diffbot/langchain-diffbot"
+Issues = "https://github.com/diffbot/langchain-diffbot/issues"
 
 [dependency-groups]
 test = [

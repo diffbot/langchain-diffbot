@@ -13,9 +13,7 @@ uv sync --extra examples
 From outside the repo (e.g. after `langchain-diffbot` is published to PyPI) you'd install both explicitly since `diffbot-python` isn't on PyPI yet:
 
 ```bash
-pip install \
-    "diffbot-python @ git+https://github.com/diffbot/diffbot-python" \
-    "langchain-diffbot[examples]"
+python3 -m pip install diffbot-python langchain-diffbot[examples]
 ```
 
 ## Notebook
