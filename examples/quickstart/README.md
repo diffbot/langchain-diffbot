@@ -33,15 +33,12 @@ Then run the cells top to bottom.
 
 ## Installing outside this repo
 
-Inside the repo, `uv sync --extra examples` is all you need (`[tool.uv.sources]`
-already points `diffbot-python` at its GitHub source). From outside the repo
-(e.g. after `langchain-diffbot` is published to PyPI) install both explicitly,
-since `diffbot-python` isn't on PyPI yet:
+Inside the repo, `uv sync --extra examples` is all you need. From outside the
+repo, install the package with its examples extra (`diffbot-python` comes in as
+a dependency from PyPI):
 
 ```bash
-pip install \
-    "diffbot-python @ git+https://github.com/diffbot/diffbot-python" \
-    "langchain-diffbot[examples]"
+pip install "langchain-diffbot[examples]"
 ```
 
 ## Editing the notebook

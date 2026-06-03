@@ -13,10 +13,8 @@ A thin LangChain integration over the official [`diffbot-python`](https://github
 
 ## Installation
 
-Until `diffbot-python` is published to PyPI it has to be installed from GitHub:
-
 ```bash
-python3 -m pip install diffbot-python langchain-diffbot
+pip install langchain-diffbot
 ```
 
 ## Authentication
@@ -176,7 +174,7 @@ The [`examples/`](./examples) folder has runnable demos:
 Both need `langchain` + `langchain-anthropic` on top of the base package — install the extra:
 
 ```bash
-python3 -m pip install diffbot-python langchain-diffbot[examples]
+pip install "langchain-diffbot[examples]"
 ```
 
 ## Development

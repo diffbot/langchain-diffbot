@@ -49,10 +49,9 @@ You'll need:
 
 md("""## 1. Install
 
-Until `diffbot-python` is published to PyPI, install it from GitHub alongside the LangChain extras.""")
+`diffbot-python` comes in as a dependency from PyPI, so a single install pulls everything.""")
 
 code("""%pip install --quiet \\
-    "diffbot-python" \\
     langchain-diffbot \\
     langchain langchain-anthropic python-dotenv""")
 
@@ -387,7 +386,7 @@ md("""## Where to go next
 
 - [DQL reference](https://docs.diffbot.com/reference/dql-quickstart) — full query language
 - [Diffbot KG entity schema](https://docs.diffbot.com/reference/knowledge-graph-overview) — what fields exist on each entity type
-- [`langchain-diffbot` README](https://github.com/diffbot/langchain-diffbot) — reference docs for all the classes
+- [`langchain-diffbot` README](https://github.com/shixish/langchain-diffbot) — reference docs for all the classes
 - [`diffbot-python` SDK](https://github.com/diffbot/diffbot-python) — the underlying client; everything you can pass to `Diffbot(...)` works via the `client=` field
 - [`create_agent` docs](https://docs.langchain.com/oss/python/langchain/agents) — customize the agent loop (memory, structured output, middleware)
 """)

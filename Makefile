@@ -84,7 +84,8 @@ release: build
 
 # Smoke-test installs from each index in a throwaway venv.
 # `cd $$TMP` before running python so CWD doesn't shadow the venv install with
-# this repo's source. Pulls diffbot-python from git until it's on PyPI.
+# this repo's source. diffbot-python resolves from PyPI as a dependency.
+# TestPyPI install still needs --extra-index-url so deps resolve from prod PyPI.
 verify-release-test:
 	@VERSION=$$(grep '^version' pyproject.toml | head -1 | cut -d'"' -f2) && \
 	  TMP=$$(mktemp -d) && \
@@ -92,7 +93,6 @@ verify-release-test:
 	  uv pip install --quiet --python $$TMP/.venv/bin/python \
 	    --index-url https://test.pypi.org/simple/ \
 	    --extra-index-url https://pypi.org/simple/ \
-	    "diffbot-python" \
 	    "langchain-diffbot==$$VERSION" && \
 	  (cd $$TMP && $$TMP/.venv/bin/python -c "from langchain_diffbot import DiffbotKnowledgeGraphRetriever; print('TestPyPI install OK:', DiffbotKnowledgeGraphRetriever.__name__)") && \
 	  rm -rf $$TMP
@@ -102,7 +102,6 @@ verify-release:
 	  TMP=$$(mktemp -d) && \
 	  uv venv --python 3.12 $$TMP/.venv >/dev/null 2>&1 && \
 	  uv pip install --quiet --python $$TMP/.venv/bin/python \
-	    "diffbot-python" \
 	    "langchain-diffbot==$$VERSION" && \
 	  (cd $$TMP && $$TMP/.venv/bin/python -c "from langchain_diffbot import DiffbotKnowledgeGraphRetriever; print('PyPI install OK:', DiffbotKnowledgeGraphRetriever.__name__)") && \
 	  rm -rf $$TMP

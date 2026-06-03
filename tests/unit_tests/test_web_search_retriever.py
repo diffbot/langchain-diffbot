@@ -53,7 +53,8 @@ def test_num_results_and_max_tokens_pass_through() -> None:
     r = DiffbotWebSearchRetriever(diffbot_api_token="t", k=5, max_tokens=2000)
     r.invoke("diffbot")
     params = route.calls.last.request.url.params
-    assert params["num_results"] == "5"
+    # diffbot-python sends the `num_results` kwarg as the `size` wire param.
+    assert params["size"] == "5"
     assert params["maxTokens"] == "2000"
 
 
