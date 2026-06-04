@@ -54,4 +54,7 @@ jobs:
       - run: uv sync --no-sources --group test
       - run: make test
       - name: Check for unexpected file changes
-        run: git diff --exit-code
+        # `uv sync --no-sources` rewrites uv.lock in place (local editable
+        # source -> PyPI registry); that diff is expected in CI. Exclude it so
+        # the guard still catches stray files a test might have written.
+        run: git diff --exit-code -- ':!uv.lock'
