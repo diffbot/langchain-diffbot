@@ -61,6 +61,12 @@ make test            # unit tests
 make test_integration  # integration tests (needs DIFFBOT_API_TOKEN)
 ```
 
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on every push to `main` and every PR: `make lint` + `make typing` (Python 3.12) and `make test` (Python 3.10 and 3.13). `.github/workflows/integration.yml` runs `make test_integration` nightly and on-demand (`workflow_dispatch`), reading the repo-level `DIFFBOT_API_TOKEN` secret. It is kept off the per-PR path on purpose: neither `schedule` nor `workflow_dispatch` can be triggered by a fork PR, so the token is never exposed to untrusted code.
+
+CI cannot use the `[tool.uv.sources]` table, which pins `langchain-core` / `langchain-tests` to the sibling `../langchain/` checkout that only exists locally. Every CI install is `uv sync --no-sources` (resolves those from PyPI, the same path release builds take) and sets `UV_NO_SYNC=true` so the `make` targets' `uv run` reuse the synced env instead of re-resolving against the sources table. `--no-sources` re-resolves, so `uv.lock` is not used in CI.
+
 ## Releasing
 
 PyPI / TestPyPI tokens live in the macOS Keychain so the Makefile pulls them automatically — no plaintext on disk, no shell-history leaks. First-time (or post-rotation) setup:
