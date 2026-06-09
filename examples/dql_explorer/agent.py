@@ -12,6 +12,7 @@ from __future__ import annotations
 import os
 from functools import lru_cache
 
+from diffbot import Diffbot
 from diffbot.errors import APIError
 from langchain.agents import create_agent
 from langchain.chat_models import init_chat_model
@@ -64,14 +65,23 @@ _ONTOLOGY_MAX_ITEMS = 80
 
 
 @lru_cache(maxsize=1)
+def _db() -> Diffbot:
+    # Shared sync client for the authoring tools. The agent's @tool functions
+    # call `.invoke()` (sync) — even under the server's `ainvoke`, LangChain runs
+    # a sync tool in a thread — so these need a sync `Diffbot`. The KG query and
+    # the Ask tab run async and build a `DiffbotAsync` in server.py instead.
+    return Diffbot(token=os.environ["DIFFBOT_API_TOKEN"])
+
+
+@lru_cache(maxsize=1)
 def _ontology_tool() -> DiffbotOntologyTool:
     # Cached so the fetched ontology is reused across the whole process.
-    return DiffbotOntologyTool()
+    return DiffbotOntologyTool(client=_db())
 
 
 @lru_cache(maxsize=1)
 def _probe_tool() -> DiffbotDQLProbeTool:
-    return DiffbotDQLProbeTool()
+    return DiffbotDQLProbeTool(client=_db())
 
 
 @tool

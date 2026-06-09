@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 @layer base {
   /* Let the browser theme native controls (scrollbars, inputs) to match. */

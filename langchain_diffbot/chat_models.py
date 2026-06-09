@@ -48,9 +48,10 @@ class ChatDiffbot(_BaseDiffbotComponent, BaseChatModel):
 
     Example:
         ```python
+        from diffbot import Diffbot
         from langchain_diffbot import ChatDiffbot
 
-        llm = ChatDiffbot()
+        llm = ChatDiffbot(client=Diffbot(token=...))
         llm.invoke("What's the capital of France?")
         ```
     """

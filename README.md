@@ -11,7 +11,7 @@ A thin LangChain integration over the official [`diffbot-python`](https://github
 | Extract (Analyze) | `DiffbotExtractTool`, `DiffbotExtractLoader` |
 | NLP entities | `DiffbotEntitiesTool` |
 | Crawl | `DiffbotCrawlLoader` |
-| LLM RAG (`ask`) | `ChatDiffbot` (with native streaming) |
+| LLM RAG (`ask`) | `ChatDiffbot` (with native streaming), `DiffbotAskTool` |
 
 ## Installation
 
@@ -19,22 +19,30 @@ A thin LangChain integration over the official [`diffbot-python`](https://github
 pip install langchain-diffbot
 ```
 
-## Authentication
+## Authentication & clients
 
-Get an API token at https://app.diffbot.com/get-started/ and export it:
+Get an API token at https://app.diffbot.com/get-started/.
 
-```bash
-export DIFFBOT_API_TOKEN="..."
+Every component takes a pre-built SDK client — you build a `diffbot.Diffbot` (sync) and/or `diffbot.DiffbotAsync` (async) and pass it via `client=` / `async_client=`. That's the only way to give a component HTTP access, and it keeps configuration in one place: customize the client (token, `timeout`, `transport=`, custom URLs) however the SDK allows, and share one client across many components to reuse a single connection pool. The component uses the client as-is and never closes it — you own its lifecycle.
+
+```python
+import os
+from diffbot import Diffbot
+
+db = Diffbot(token=os.environ["DIFFBOT_API_TOKEN"])
 ```
 
-Every class also accepts `diffbot_api_token=...` directly, or a pre-built `diffbot.Diffbot` client via `client=...` (see [Bring-your-own-client](#bring-your-own-client) below).
+Pick your execution mode by which client you build: `Diffbot` for the sync surface (`invoke`, `stream`, `load`), `DiffbotAsync` for the async surface (`ainvoke`, `astream`, `alazy_load`). Pass both if a component is used both ways.
 
 ## Quickstart — Knowledge Graph retriever
 
 ```python
+import os
+from diffbot import Diffbot
 from langchain_diffbot import DiffbotKnowledgeGraphRetriever
 
-retriever = DiffbotKnowledgeGraphRetriever(k=5)
+db = Diffbot(token=os.environ["DIFFBOT_API_TOKEN"])
+retriever = DiffbotKnowledgeGraphRetriever(client=db, k=5)
 docs = retriever.invoke("type:Organization industries:\"Artificial Intelligence\" location.city.name:\"Boston\"")
 for d in docs:
     print(d.metadata["name"], "—", d.page_content[:120])
@@ -47,18 +55,24 @@ The query string is a [DQL (Diffbot Query Language)](https://docs.diffbot.com/re
 Diffbot KG entities and web-search results are large. Dumping them straight into an LLM prompt can blow past per-minute input-token limits in a single call. Both retrievers expose three shaping knobs:
 
 ```python
+import os
+from diffbot import Diffbot
 from langchain_core.documents import Document
 from langchain_diffbot import DiffbotKnowledgeGraphRetriever
+
+db = Diffbot(token=os.environ["DIFFBOT_API_TOKEN"])
 
 # 1. Project only the top-level fields you care about. Drops everything else
 #    from `metadata`. Recommended for agent / tool-use scenarios.
 retriever = DiffbotKnowledgeGraphRetriever(
+    client=db,
     k=5,
     fields=["id", "type", "name", "homepageUri", "nbEmployees"],
 )
 
 # 2. Choose which field becomes `page_content`. First non-empty value wins.
 retriever = DiffbotKnowledgeGraphRetriever(
+    client=db,
     content_fields=["summary", "description", "name"],
 )
 
@@ -70,7 +84,7 @@ def mapper(entity: dict) -> Document:
         metadata={"id": entity["id"], "name": entity["name"]},
     )
 
-retriever = DiffbotKnowledgeGraphRetriever(document_mapper=mapper)
+retriever = DiffbotKnowledgeGraphRetriever(client=db, document_mapper=mapper)
 ```
 
 `fields` and `content_fields` are ignored when `document_mapper` is set. The same knobs work on `DiffbotWebSearchRetriever`.
@@ -78,36 +92,60 @@ retriever = DiffbotKnowledgeGraphRetriever(document_mapper=mapper)
 ## Web search
 
 ```python
+import os
+from diffbot import Diffbot
 from langchain_diffbot import DiffbotWebSearchRetriever
 
-web = DiffbotWebSearchRetriever(k=5, fields=["title", "pageUrl", "score"])
+db = Diffbot(token=os.environ["DIFFBOT_API_TOKEN"])
+web = DiffbotWebSearchRetriever(client=db, k=5, fields=["title", "pageUrl", "score"])
 docs = web.invoke("diffbot knowledge graph llm grounding")
 ```
 
 ## Extract a URL
 
 ```python
+import os
+from diffbot import Diffbot
 from langchain_diffbot import DiffbotExtractTool, DiffbotExtractLoader
 
+db = Diffbot(token=os.environ["DIFFBOT_API_TOKEN"])
+
 # Single URL
-tool = DiffbotExtractTool()
+tool = DiffbotExtractTool(client=db)
 page = tool.invoke({"url": "https://www.diffbot.com/products/extract/"})
 
-# Batch — yields one Document per URL, sync or async
-loader = DiffbotExtractLoader(urls=["https://example.com", "https://diffbot.com"])
+# Batch — yields one Document per URL (the same client is reused)
+loader = DiffbotExtractLoader(client=db, urls=["https://example.com", "https://diffbot.com"])
 for doc in loader.lazy_load():
     print(doc.metadata["title"], doc.page_content[:200])
 ```
 
 `DiffbotExtractTool` returns a structured `{"error": ..., "errorCode": ...}` dict when Diffbot reports an extraction failure (200 with `errorCode`), so agents can react and try another URL instead of catching an exception. Auth / rate-limit errors propagate as `diffbot.errors.AuthError` / `RateLimitError`.
 
+## Crawl a site
+
+`DiffbotCrawlLoader` drives a Diffbot crawl job and yields one `Document` per crawled URL. The `page_content` is the URL itself (the crawl API surfaces URLs, not page contents) — chain it with `DiffbotExtractLoader` to fetch the content of each URL.
+
+```python
+import os
+from diffbot import Diffbot
+from langchain_diffbot import DiffbotCrawlLoader
+
+db = Diffbot(token=os.environ["DIFFBOT_API_TOKEN"])
+loader = DiffbotCrawlLoader(client=db, site="https://www.diffbot.com")
+for doc in loader.lazy_load():
+    print(doc.metadata["url"], doc.metadata["status"])
+```
+
 ## ChatDiffbot
 
 ```python
+import os
+from diffbot import Diffbot
 from langchain_core.messages import HumanMessage
 from langchain_diffbot import ChatDiffbot
 
-llm = ChatDiffbot()
+llm = ChatDiffbot(client=Diffbot(token=os.environ["DIFFBOT_API_TOKEN"]))
 
 for chunk in llm.stream([HumanMessage(content="What is the Diffbot Knowledge Graph?")]):
     print(chunk.content, end="", flush=True)
@@ -115,11 +153,93 @@ for chunk in llm.stream([HumanMessage(content="What is the Diffbot Knowledge Gra
 
 `_stream` / `_astream` are native — no thread-pool fallback. `.invoke()` aggregates the stream into a single message.
 
+To let a tool-calling agent *consult* Diffbot's LLM (rather than use it as the primary model), hand it `DiffbotAskTool` instead — it answers a natural-language question from the Knowledge Graph + live web and returns a synthesized string:
+
+```python
+import os
+from diffbot import Diffbot
+from langchain_diffbot import DiffbotAskTool
+
+ask = DiffbotAskTool(client=Diffbot(token=os.environ["DIFFBOT_API_TOKEN"]))
+print(ask.invoke({"question": "Who founded Diffbot, and when?"}))
+```
+
+## Agent tools
+
+Every Diffbot API is also exposed as an agent-callable `BaseTool`. Hand a tool-calling agent only the tools you want — they all share whatever client you pass. `DiffbotExtractTool` and `DiffbotAskTool` are shown above; the rest:
+
+### DiffbotWebSearchTool
+
+Runs a Diffbot web search and returns the result list — each item with `title`, `pageUrl`, `score`, and `content`. (Use `DiffbotWebSearchRetriever` when you want `Document` output instead.)
+
+```python
+import os
+from diffbot import Diffbot
+from langchain_diffbot import DiffbotWebSearchTool
+
+tool = DiffbotWebSearchTool(client=Diffbot(token=os.environ["DIFFBOT_API_TOKEN"]))
+results = tool.invoke({"text": "diffbot knowledge graph"})
+```
+
+### DiffbotKnowledgeGraphTool
+
+Runs a DQL query against the Knowledge Graph from within an agent and returns the raw response dict. (Use `DiffbotKnowledgeGraphRetriever` when you want `Document` output instead.)
+
+```python
+import os
+from diffbot import Diffbot
+from langchain_diffbot import DiffbotKnowledgeGraphTool
+
+tool = DiffbotKnowledgeGraphTool(client=Diffbot(token=os.environ["DIFFBOT_API_TOKEN"]))
+body = tool.invoke({"query": 'type:Organization name:"Diffbot"'})
+```
+
+### DiffbotEntitiesTool
+
+Identifies named entities and sentiment in text via Diffbot's NLP API. The returned entity IDs can be looked up in the Knowledge Graph (e.g. `id:or("E1","E2")`).
+
+```python
+import os
+from diffbot import Diffbot
+from langchain_diffbot import DiffbotEntitiesTool
+
+tool = DiffbotEntitiesTool(client=Diffbot(token=os.environ["DIFFBOT_API_TOKEN"]))
+result = tool.invoke({"text": "Diffbot was founded in Menlo Park."})
+```
+
+### Authoring DQL on the fly: DiffbotOntologyTool + DiffbotDQLProbeTool
+
+So an agent can build valid DQL instead of guessing field names, two tools wrap Diffbot's DQL-authoring helpers. The intended loop is **introspect (ontology) → probe → run (`DiffbotKnowledgeGraphTool`) → refine**.
+
+`DiffbotOntologyTool` navigates the KG ontology — discover real entity types, field paths, taxonomy, and enum values before querying. The ontology is fetched once over HTTP and cached on the tool instance for the rest of its lifetime.
+
+```python
+import os
+from diffbot import Diffbot
+from langchain_diffbot import DiffbotOntologyTool
+
+tool = DiffbotOntologyTool(client=Diffbot(token=os.environ["DIFFBOT_API_TOKEN"]))
+types = tool.invoke({"op": "types"})
+```
+
+`DiffbotDQLProbeTool` probes query variants at `size=0` (hit counts only), so an agent can check selectivity — not zero, not millions — before committing to a full query.
+
+```python
+import os
+from diffbot import Diffbot
+from langchain_diffbot import DiffbotDQLProbeTool
+
+tool = DiffbotDQLProbeTool(client=Diffbot(token=os.environ["DIFFBOT_API_TOKEN"]))
+counts = tool.invoke({"queries": ['type:Organization name:"Diffbot"', "type:Person"]})
+```
+
 ## Using a retriever in a chain
 
 The retrievers are standard `BaseRetriever`s, so they slot into LCEL like any other:
 
 ```python
+import os
+from diffbot import Diffbot
 from langchain_anthropic import ChatAnthropic
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
@@ -127,6 +247,7 @@ from langchain_core.runnables import RunnablePassthrough
 from langchain_diffbot import DiffbotKnowledgeGraphRetriever
 
 retriever = DiffbotKnowledgeGraphRetriever(
+    client=Diffbot(token=os.environ["DIFFBOT_API_TOKEN"]),
     k=5,
     fields=["id", "name", "homepageUri", "nbEmployees", "industries"],
 )
@@ -153,18 +274,48 @@ chain = (
 chain.invoke('type:Organization location.city.name:"Boston" industries:"Biotech"')
 ```
 
-## Bring-your-own-client
+## Sharing a client across components
 
-Every class accepts a pre-built `diffbot.Diffbot` (or `diffbot.DiffbotAsync`) via `client` / `async_client`. The package uses it as-is and **does not close it** — you own the lifecycle. This is the escape hatch for anything the SDK supports that's not re-exposed as a field (custom URLs, `transport=`, shared connection pools, custom headers).
+Because every component takes a client, you configure the SDK once and hand the same client to as many components as you like — they share its connection pool, and there's no per-call pool churn. Build the tools/retrievers you actually want and add only those to your agent; the client is the shared resource, not a bundle.
 
 ```python
+import os
 from diffbot import Diffbot
-from langchain_diffbot import DiffbotKnowledgeGraphRetriever
+from langchain_diffbot import (
+    DiffbotKnowledgeGraphTool,
+    DiffbotAskTool,
+    DiffbotWebSearchRetriever,
+)
 
-# One client shared across many retriever calls (no per-call httpx pool churn)
-shared = Diffbot(token="...", timeout=60.0)
-retriever = DiffbotKnowledgeGraphRetriever(client=shared, k=5)
+# One client, configured once (timeout, transport, custom URLs, ...),
+# shared across every component.
+db = Diffbot(token=os.environ["DIFFBOT_API_TOKEN"], timeout=60.0)
+
+kg = DiffbotKnowledgeGraphTool(client=db)
+ask = DiffbotAskTool(client=db)
+web = DiffbotWebSearchRetriever(client=db, k=5)
+
+# `db.close()` when you're done — the components never close it for you.
 ```
+
+Anything the SDK supports (custom URLs, `transport=`, headers via a custom transport) is configured on the client you build — there's no second configuration surface to learn. For async, build a `diffbot.DiffbotAsync` and pass `async_client=` instead (or both, if a component is used both ways).
+
+## Components reference
+
+| Class | Abstraction | Import path |
+|-------|-------------|-------------|
+| `ChatDiffbot` | Chat model | `from langchain_diffbot import ChatDiffbot` |
+| `DiffbotKnowledgeGraphRetriever` | Retriever | `from langchain_diffbot import DiffbotKnowledgeGraphRetriever` |
+| `DiffbotWebSearchRetriever` | Retriever | `from langchain_diffbot import DiffbotWebSearchRetriever` |
+| `DiffbotExtractLoader` | Document loader | `from langchain_diffbot import DiffbotExtractLoader` |
+| `DiffbotCrawlLoader` | Document loader | `from langchain_diffbot import DiffbotCrawlLoader` |
+| `DiffbotExtractTool` | Tool | `from langchain_diffbot import DiffbotExtractTool` |
+| `DiffbotWebSearchTool` | Tool | `from langchain_diffbot import DiffbotWebSearchTool` |
+| `DiffbotKnowledgeGraphTool` | Tool | `from langchain_diffbot import DiffbotKnowledgeGraphTool` |
+| `DiffbotEntitiesTool` | Tool | `from langchain_diffbot import DiffbotEntitiesTool` |
+| `DiffbotAskTool` | Tool | `from langchain_diffbot import DiffbotAskTool` |
+| `DiffbotOntologyTool` | Tool | `from langchain_diffbot import DiffbotOntologyTool` |
+| `DiffbotDQLProbeTool` | Tool | `from langchain_diffbot import DiffbotDQLProbeTool` |
 
 ## Examples
 
@@ -190,4 +341,13 @@ Integration tests hit the live Diffbot API and require `DIFFBOT_API_TOKEN`:
 
 ```bash
 uv run pytest tests/integration_tests
+```
+
+### Prose linting
+
+This README is the source of truth for the [LangChain integration page](https://docs.langchain.com), generated from it by the `sync-langchain-docs` workflow. Its prose is linted against the LangChain docs house style with [Vale](https://vale.sh) (config under `.vale.ini` and `.github/vale/styles/`, copied from `langchain-ai/docs`), so it stays publishable. Vale is a standalone binary, not a Python package — install it separately, then run the linter:
+
+```bash
+brew install vale            # macOS; for other platforms see https://vale.sh/docs/install
+make lint_prose              # lints README.md, errors only (the docs-repo CI gate)
 ```

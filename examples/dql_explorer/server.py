@@ -8,15 +8,18 @@ single port: build once, run the server, open the browser.
 
 from __future__ import annotations
 
+import json
 import os
+from collections.abc import AsyncIterator
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from diffbot import DiffbotAsync
 from diffbot.errors import APIError
 from dotenv import load_dotenv
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_core.tracers.context import collect_runs
@@ -25,7 +28,7 @@ from pydantic import BaseModel, Field
 from dql_explorer.agent import DQLPlan, build_dql_agent
 from dql_explorer.dashboard import build_dashboard, default_range
 from dql_explorer.projection import build_rows
-from langchain_diffbot import DiffbotKnowledgeGraphTool
+from langchain_diffbot import ChatDiffbot, DiffbotKnowledgeGraphTool
 
 # Read examples/.env (DIFFBOT_API_TOKEN, ANTHROPIC_API_KEY, optional LANGSMITH_*).
 load_dotenv()
@@ -46,8 +49,23 @@ def _agent():
 
 
 @lru_cache(maxsize=1)
+def _adb() -> DiffbotAsync:
+    # Shared async client for the endpoints that run on the event loop: the KG
+    # query (`_kg_tool().ainvoke`) and the Ask tab (`_chat().astream`). One pool
+    # serves both. The authoring tools run sync and build a `Diffbot` in agent.py.
+    return DiffbotAsync(token=os.environ["DIFFBOT_API_TOKEN"])
+
+
+@lru_cache(maxsize=1)
 def _kg_tool() -> DiffbotKnowledgeGraphTool:
-    return DiffbotKnowledgeGraphTool()
+    return DiffbotKnowledgeGraphTool(async_client=_adb())
+
+
+@lru_cache(maxsize=1)
+def _chat() -> ChatDiffbot:
+    # Diffbot's own RAG LLM. Unlike the DQL Builder's Anthropic agent, this needs
+    # no API key beyond DIFFBOT_API_TOKEN — the graph is the model's knowledge.
+    return ChatDiffbot(async_client=_adb())
 
 
 class QueryRequest(BaseModel):
@@ -55,6 +73,12 @@ class QueryRequest(BaseModel):
 
     question: str = Field(description="Plain-English question.")
     k: int = Field(default=DEFAULT_K, ge=1, le=100, description="Max rows to fetch.")
+
+
+class AskRequest(BaseModel):
+    """Body for `POST /api/ask`."""
+
+    question: str = Field(description="Plain-English question for Diffbot's RAG LLM.")
 
 
 class DashboardRequest(BaseModel):
@@ -170,9 +194,58 @@ async def dashboard(req: DashboardRequest) -> dict[str, Any]:
     """Build the M&A / IPO dashboard for a headcount floor and date window."""
     default_from, default_to = default_range()
     return await build_dashboard(
+        _kg_tool(),
         min_employees=req.min_employees,
         date_from=req.date_from or default_from,
         date_to=req.date_to or default_to,
+    )
+
+
+def _sse(event: str, data: dict[str, Any]) -> str:
+    """Format one Server-Sent Event frame."""
+    return f"event: {event}\ndata: {json.dumps(data)}\n\n"
+
+
+@app.post("/api/ask")
+async def ask(req: AskRequest) -> StreamingResponse:
+    """Answer `question` with Diffbot's RAG LLM, streaming tokens as SSE.
+
+    This is the showcase for `ChatDiffbot`: where the DQL Builder authors a precise
+    query, this just asks Diffbot's own LLM, which is grounded in the Knowledge
+    Graph and the live web. `ChatDiffbot.astream` streams tokens natively, so we
+    forward each chunk to the browser as it arrives instead of buffering the answer.
+    """
+
+    async def gen() -> AsyncIterator[str]:
+        try:
+            async for chunk in _chat().astream([HumanMessage(content=req.question)]):
+                text = (
+                    chunk.content
+                    if isinstance(chunk.content, str)
+                    else str(chunk.content)
+                )
+                if text:
+                    yield _sse("token", {"text": text})
+        except APIError as exc:
+            yield _sse(
+                "error",
+                {
+                    "message": (
+                        f"Diffbot rejected the request ({exc.status_code}): "
+                        f"{exc.message or 'see body'}."
+                    )
+                },
+            )
+        except Exception as exc:  # surface any failure to the UI instead of hanging
+            yield _sse("error", {"message": str(exc)})
+        else:
+            yield _sse("done", {})
+
+    # Disable proxy/nginx buffering so tokens reach the browser as they stream.
+    return StreamingResponse(
+        gen(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
 
 

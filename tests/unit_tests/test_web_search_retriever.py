@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import httpx
 import respx
+from diffbot import Diffbot, DiffbotAsync
 from langchain_core.documents import Document
 
 from langchain_diffbot import DiffbotWebSearchRetriever
@@ -31,7 +32,7 @@ SAMPLE_BODY = {
 @respx.mock
 def test_invoke_maps_results_to_documents() -> None:
     respx.get(WEB_SEARCH_URL).mock(return_value=httpx.Response(200, json=SAMPLE_BODY))
-    r = DiffbotWebSearchRetriever(diffbot_api_token="t", k=2)
+    r = DiffbotWebSearchRetriever(client=Diffbot(token="t"), k=2)
     docs = r.invoke("diffbot knowledge graph")
     assert len(docs) == 2
     assert all(isinstance(d, Document) for d in docs)
@@ -50,7 +51,7 @@ def test_num_results_and_max_tokens_pass_through() -> None:
     route = respx.get(WEB_SEARCH_URL).mock(
         return_value=httpx.Response(200, json=SAMPLE_BODY)
     )
-    r = DiffbotWebSearchRetriever(diffbot_api_token="t", k=5, max_tokens=2000)
+    r = DiffbotWebSearchRetriever(client=Diffbot(token="t"), k=5, max_tokens=2000)
     r.invoke("diffbot")
     params = route.calls.last.request.url.params
     # diffbot-python sends the `num_results` kwarg as the `size` wire param.
@@ -62,7 +63,7 @@ def test_num_results_and_max_tokens_pass_through() -> None:
 def test_fields_allowlist() -> None:
     respx.get(WEB_SEARCH_URL).mock(return_value=httpx.Response(200, json=SAMPLE_BODY))
     r = DiffbotWebSearchRetriever(
-        diffbot_api_token="t", k=1, fields=["title", "pageUrl"]
+        client=Diffbot(token="t"), k=1, fields=["title", "pageUrl"]
     )
     [doc] = r.invoke("diffbot")
     assert set(doc.metadata) == {"title", "pageUrl"}
@@ -75,7 +76,9 @@ def test_document_mapper_overrides_default() -> None:
     def mapper(hit: dict) -> Document:
         return Document(page_content=hit["title"], metadata={"url": hit["pageUrl"]})
 
-    r = DiffbotWebSearchRetriever(diffbot_api_token="t", k=1, document_mapper=mapper)
+    r = DiffbotWebSearchRetriever(
+        client=Diffbot(token="t"), k=1, document_mapper=mapper
+    )
     [doc] = r.invoke("diffbot")
     assert doc.page_content == "Diffbot Knowledge Graph"
     assert doc.metadata == {"url": "https://www.diffbot.com/kg/"}
@@ -84,7 +87,7 @@ def test_document_mapper_overrides_default() -> None:
 @respx.mock
 async def test_ainvoke_works() -> None:
     respx.get(WEB_SEARCH_URL).mock(return_value=httpx.Response(200, json=SAMPLE_BODY))
-    r = DiffbotWebSearchRetriever(diffbot_api_token="t", k=2)
+    r = DiffbotWebSearchRetriever(async_client=DiffbotAsync(token="t"), k=2)
     docs = await r.ainvoke("diffbot")
     assert [d.metadata["title"] for d in docs] == [
         "Diffbot Knowledge Graph",
