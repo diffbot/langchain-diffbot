@@ -53,7 +53,7 @@ Methods like `crawl_list_jobs`, `crawl_get_job`, `crawl_delete_job`, and `dql_re
 
 ## Documentation
 
-Four documents describe this package; keep them all accurate when things change:
+Six documents describe this package; keep them all accurate when things change:
 
 | File | Audience | Owns |
 |------|----------|------|
@@ -61,8 +61,12 @@ Four documents describe this package; keep them all accurate when things change:
 | `providers/diffbot.mdx` (langchain-docs) | Docs site — Diffbot landing page | Overview only: install, auth, components table, links to detail pages |
 | `tools/diffbot.mdx` (langchain-docs) | Docs site — tools reference | Full tool documentation with examples |
 | `retrievers/diffbot.mdx` (langchain-docs) | Docs site — retrievers reference | Full retriever documentation with examples |
+| `chat/diffbot.mdx` (langchain-docs) | Docs site — chat model reference | `ChatDiffbot` usage |
+| `document_loaders/diffbot.mdx` (langchain-docs) | Docs site — loader reference | Extract and crawl loaders |
 
 The langchain-docs pages link to each other rather than duplicate content. Use the `sync-langchain-docs` skill to update whichever pages need it. The local docs checkout is expected at sibling `../langchain-docs` (overridable via `$LANGCHAIN_DOCS_REPO`).
+
+**LangChain 1.x imports in docs:** Use `langchain.messages` for message types; use `langchain_core` for `Document`, prompts, output parsers, and runnables. Do not use `langchain.documents` or `langchain.prompts` — those modules do not exist in current `langchain` releases. See the `sync-langchain-docs` skill for the full table and CI notes.
 
 **The docs repo leads on prose quality.** If validation fixes are made to the docs pages (Vale, CI, editorial review), propagate those improvements back to `README.md` — don't let the README drift to a lower standard.
 

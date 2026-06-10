@@ -8,7 +8,7 @@ allowed-tools: Bash(python3:*), Bash(grep:*), Bash(find:*), Bash(make:*), Read, 
 
 This skill checks every Diffbot documentation file on the LangChain docs site against this repo's public API, runs the docs repo's own validators (Vale, etc.), and propagates any findings back into this repo — `README.md` and Python source files (docstrings, comments). The docs repo's validation standards apply repo-wide here.
 
-## Source of truth (this repo)
+## Package authority (this repo)
 
 | Artifact | What it defines |
 |----------|----------------|
@@ -17,7 +17,7 @@ This skill checks every Diffbot documentation file on the LangChain docs site ag
 | `langchain_diffbot/retrievers/` | Retriever constructor parameters, return types |
 | `langchain_diffbot/chat_models/` | Chat model constructor parameters |
 | `langchain_diffbot/document_loaders/` | Loader constructor parameters |
-| `README.md` | Canonical prose, API table, auth model, examples |
+| `README.md` | GitHub/PyPI package reference — prose, API table, auth model, examples |
 
 ## Documentation files to audit (langchain-ai/docs)
 
@@ -25,9 +25,11 @@ A local `langchain-ai/docs` checkout is expected at the sibling **`../langchain-
 
 | File | What it should reflect |
 |------|----------------------|
-| `src/oss/python/integrations/providers/diffbot.mdx` | Overview hub: API table, install, auth, component table, links to tools/retrievers pages |
+| `src/oss/python/integrations/providers/diffbot.mdx` | Overview hub: API table, install, auth, component table, links to detail pages |
 | `src/oss/python/integrations/tools/diffbot.mdx` | All 7 tools: `DiffbotExtractTool`, `DiffbotWebSearchTool`, `DiffbotKnowledgeGraphTool`, `DiffbotEntitiesTool`, `DiffbotAskTool`, `DiffbotOntologyTool`, `DiffbotDQLProbeTool` |
 | `src/oss/python/integrations/retrievers/diffbot.mdx` | Both retrievers: `DiffbotKnowledgeGraphRetriever`, `DiffbotWebSearchRetriever` |
+| `src/oss/python/integrations/chat/diffbot.mdx` | `ChatDiffbot` usage |
+| `src/oss/python/integrations/document_loaders/diffbot.mdx` | `DiffbotExtractLoader`, `DiffbotCrawlLoader` |
 | `src/oss/python/integrations/providers/all_providers.mdx` | Card entry for Diffbot |
 | `src/oss/python/integrations/tools/index.mdx` | Row in Search table + card in All tools and toolkits |
 | `src/oss/python/integrations/retrievers/index.mdx` | Rows in External index table + card in All retrievers |
@@ -165,5 +167,6 @@ uv run pytest tests/unit_tests/test_readme_parity.py tests/unit_tests/test_readm
 ## Notes
 
 - Fixes to `README.md` and Python source are applied directly by this skill. Fixes to `langchain-docs` files must be made there separately (this repo has no write access to the remote).
-- To sync the provider hub after fixing README.md: run `/sync-langchain-docs`.
-- To fix tools/retrievers deep-dive pages: edit them directly in `langchain-ai/docs`.
+- To align langchain-docs pages with README.md after fixes here: run `/sync-langchain-docs`.
+- To fix detail pages: edit them directly in `langchain-ai/docs`.
+- **LangChain 1.x imports:** Flag `langchain.documents`, `langchain.prompts`, `langchain.runnables`, or `langchain.output_parsers` as stale — those modules do not exist. Use `langchain.messages` for message types and `langchain_core` for `Document`, prompts, parsers, and runnables. See the `sync-langchain-docs` skill for the full table.

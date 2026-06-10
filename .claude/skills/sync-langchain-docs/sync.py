@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""Resolve the Diffbot provider page inside a local langchain-ai/docs checkout.
+"""Resolve Diffbot docs paths inside a local langchain-ai/docs checkout.
 
-README.md in this repo is the single source of truth for the Diffbot provider
-page on the LangChain docs site; the `sync-langchain-docs` skill *generates* the
-page (`.mdx`) from it. The generation itself is agent-driven (prose → house
-style), so this script does not copy anything — it just resolves where the page
-lives, so the skill never hardcodes the path:
+README.md and the LangChain docs pages are maintained in parallel—not generated
+from one another. Import rules for examples (LangChain 1.x) live in
+`.claude/skills/sync-langchain-docs/SKILL.md`. This script only resolves where
+those pages live so the skill never hardcodes paths:
 
     # Resolve the docs repo from --docs-repo, $LANGCHAIN_DOCS_REPO, or the
     # sibling ../langchain-docs, then print:

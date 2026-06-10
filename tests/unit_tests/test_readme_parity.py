@@ -1,9 +1,8 @@
 """Keep README.md in lockstep with the package surface.
 
-README.md is the single source of truth for this package's docs; the LangChain
-provider page is generated from it by the `sync-langchain-docs` skill. These
-tests fail if the README drifts from `__all__`, so a class added, renamed, or
-removed cannot silently miss the docs (and therefore the published page).
+README.md is maintained alongside the LangChain docs pages. These tests fail if
+the README drifts from `__all__`, so a class added, renamed, or removed cannot
+silently miss the README components table.
 """
 
 from __future__ import annotations

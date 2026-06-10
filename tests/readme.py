@@ -1,12 +1,12 @@
 """Shared helpers for testing the python code blocks in README.md.
 
-README.md is the single source of truth for this package's docs: the LangChain
-provider page is *generated from it* by the `sync-langchain-docs` skill. Three
-suites consume these helpers: `unit_tests/test_readme_examples.py` runs the
-blocks against respx mocks (deterministic, no token),
-`integration_tests/test_readme_examples.py` runs them against the live Diffbot
-API, and `unit_tests/test_readme_parity.py` checks the page stays in lockstep
-with the package surface (`__all__`). The execution suites decide which blocks
+README.md is maintained alongside the LangChain docs pages (provider hub, tools,
+retrievers, chat). Three suites consume these helpers:
+`unit_tests/test_readme_examples.py` runs the blocks against respx mocks
+(deterministic, no token), `integration_tests/test_readme_examples.py` runs them
+against the live Diffbot API, and `unit_tests/test_readme_parity.py` checks the
+README components table stays in lockstep with the package surface (`__all__`).
+The execution suites decide which blocks
 to run by inspecting each block's imports and whether it is executable.
 """
 

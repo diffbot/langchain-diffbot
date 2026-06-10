@@ -1,11 +1,9 @@
 """Execute the Python code blocks in README.md against mocked Diffbot endpoints.
 
-README.md is the single source of truth for this package's docs: the
-docs.langchain.com provider page is *generated from it* by the
-`sync-langchain-docs` skill. This guards against the README (and therefore that
-page) drifting from the package: a renamed class, a changed kwarg, or a wrong
-import surfaces here as a failing exec rather than as a user copy-pasting a
-broken snippet.
+README.md is maintained alongside the LangChain docs pages. This guards against
+the README drifting from the package: a renamed class, a changed kwarg, or a
+wrong import surfaces here as a failing exec rather than as a user copy-pasting
+a broken snippet.
 
 The blocks are run under `respx` mocks of every Diffbot endpoint — the same
 canned-response style the rest of `unit_tests/` uses — so the suite stays
