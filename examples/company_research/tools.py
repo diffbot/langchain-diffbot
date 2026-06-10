@@ -25,7 +25,7 @@ from typing import Any
 
 from diffbot import Diffbot
 from diffbot.errors import APIError
-from langchain_core.tools import tool
+from langchain.tools import tool
 
 from langchain_diffbot import (
     DiffbotDQLProbeTool,

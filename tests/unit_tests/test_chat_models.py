@@ -5,7 +5,7 @@ from __future__ import annotations
 import httpx
 import respx
 from diffbot import Diffbot, DiffbotAsync
-from langchain_core.messages import AIMessageChunk, HumanMessage, SystemMessage
+from langchain.messages import AIMessageChunk, HumanMessage, SystemMessage
 
 from langchain_diffbot import ChatDiffbot
 

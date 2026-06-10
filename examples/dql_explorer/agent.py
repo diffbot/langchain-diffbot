@@ -16,7 +16,7 @@ from diffbot import Diffbot
 from diffbot.errors import APIError
 from langchain.agents import create_agent
 from langchain.chat_models import init_chat_model
-from langchain_core.tools import tool
+from langchain.tools import tool
 from pydantic import BaseModel, Field
 
 from langchain_diffbot import DiffbotDQLProbeTool, DiffbotOntologyTool

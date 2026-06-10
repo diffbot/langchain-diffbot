@@ -264,7 +264,7 @@ md("""## 9. ChatDiffbot
 `ChatDiffbot` wraps Diffbot's own LLM RAG endpoint as a LangChain `BaseChatModel`. It streams tokens natively, so both `.stream()` and `.astream()` work out of the box — and `.invoke()` aggregates the stream for you.""")
 
 code("""from langchain_diffbot import ChatDiffbot
-from langchain_core.messages import HumanMessage
+from langchain.messages import HumanMessage
 
 llm = ChatDiffbot(client=db)
 
@@ -310,7 +310,7 @@ from typing import Any
 
 from diffbot.errors import APIError
 from langchain.agents import create_agent
-from langchain_core.tools import tool
+from langchain.tools import tool
 
 from langchain_diffbot import (
     DiffbotExtractTool,

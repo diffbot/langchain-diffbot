@@ -21,7 +21,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langchain.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_core.tracers.context import collect_runs
 from pydantic import BaseModel, Field
 

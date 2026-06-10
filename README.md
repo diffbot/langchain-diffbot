@@ -142,7 +142,7 @@ for doc in loader.lazy_load():
 ```python
 import os
 from diffbot import Diffbot
-from langchain_core.messages import HumanMessage
+from langchain.messages import HumanMessage
 from langchain_diffbot import ChatDiffbot
 
 llm = ChatDiffbot(client=Diffbot(token=os.environ["DIFFBOT_API_TOKEN"]))
