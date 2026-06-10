@@ -2,6 +2,8 @@
 
 [![CI](https://github.com/diffbot/langchain-diffbot/actions/workflows/ci.yml/badge.svg)](https://github.com/diffbot/langchain-diffbot/actions/workflows/ci.yml)
 
+**LangChain docs:** [https://docs.langchain.com/oss/python/integrations/providers/diffbot](https://docs.langchain.com/oss/python/integrations/providers/diffbot)
+
 A thin LangChain integration over the official [`diffbot-python`](https://github.com/diffbot/diffbot-python) SDK. Every Diffbot API gets the closest LangChain primitive:
 
 | Diffbot API | LangChain class(es) |

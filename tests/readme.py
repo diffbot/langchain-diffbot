@@ -24,7 +24,13 @@ README = Path(__file__).parents[1] / "README.md"
 # never consumes non-Diffbot quota). `os` is stdlib (blocks read the token from
 # the environment). The LCEL example imports `langchain_anthropic` and is
 # therefore skipped by both suites.
-DIFFBOT_ONLY_IMPORTS = {"langchain_diffbot", "langchain_core", "langchain", "diffbot", "os"}
+DIFFBOT_ONLY_IMPORTS = {
+    "langchain_diffbot",
+    "langchain_core",
+    "langchain",
+    "diffbot",
+    "os",
+}
 
 # Components that construct one of these are documented but not executed by the
 # README suites. `DiffbotCrawlLoader` drives a real crawl job, which is slow and
