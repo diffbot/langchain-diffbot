@@ -376,6 +376,55 @@ class DiffbotOntologyTool(_BaseDiffbotComponent, BaseTool):
         return _ontology_lookup(self._ontology, op, name, search)
 
 
+class _DiffbotAskInput(BaseModel):
+    question: str = Field(
+        description="Natural-language question for Diffbot's RAG LLM."
+    )
+
+
+class DiffbotAskTool(_BaseDiffbotComponent, BaseTool):
+    """Tool that asks Diffbot's LLM RAG (`ask`) endpoint a natural-language question.
+
+    Where `DiffbotKnowledgeGraphTool` runs a precise DQL query, this delegates a
+    fuzzy question to Diffbot's own LLM — grounded in the Knowledge Graph and the
+    live web — and returns a synthesized answer. Drop it into any tool-calling
+    agent so the agent can *consult* Diffbot for things it can't express in DQL.
+
+    The SDK streams the answer; this tool aggregates the stream into a single
+    string (use `ChatDiffbot` when you want the chat-model surface with streaming).
+    """
+
+    name: str = "diffbot_ask"
+    description: str = (
+        "Ask Diffbot's LLM a natural-language question. It answers using "
+        "Diffbot's Knowledge Graph and a live web search, returning a synthesized "
+        "answer with sources. Use for open-ended questions you can't express as a "
+        "precise Knowledge Graph (DQL) query."
+    )
+    args_schema: type[BaseModel] = _DiffbotAskInput
+
+    def _run(
+        self,
+        question: str,
+        run_manager: CallbackManagerForToolRun | None = None,
+    ) -> str:
+        messages = [{"role": "user", "content": question}]
+        with self._sync_db() as db:
+            return "".join(db.ask(messages))
+
+    async def _arun(
+        self,
+        question: str,
+        run_manager: AsyncCallbackManagerForToolRun | None = None,
+    ) -> str:
+        messages = [{"role": "user", "content": question}]
+        parts: list[str] = []
+        async with self._async_db() as db:
+            async for chunk in db.ask(messages):
+                parts.append(chunk)
+        return "".join(parts)
+
+
 class _DiffbotDQLProbeInput(BaseModel):
     queries: list[str] = Field(
         description=(

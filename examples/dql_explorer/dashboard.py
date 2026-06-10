@@ -173,7 +173,9 @@ def _month_series(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return rows
 
 
-async def _build(min_employees: int, date_from: str, date_to: str) -> dict[str, Any]:
+async def _build(
+    kg: DiffbotKnowledgeGraphTool, min_employees: int, date_from: str, date_to: str
+) -> dict[str, Any]:
     """Run both queries (concurrently), aggregate, and shape the response."""
     # Omit the headcount clause entirely at 0 — DQL has no "any value" wildcard.
     emp = f" nbEmployees>{min_employees}" if min_employees > 0 else ""
@@ -183,7 +185,6 @@ async def _build(min_employees: int, date_from: str, date_to: str) -> dict[str, 
     )
     ipo_query = f'type:Organization ipo.date>="{date_from}" ipo.date<="{date_to}"{emp}'
 
-    kg = DiffbotKnowledgeGraphTool()
     # The dashboard is deterministic (no model), and each KG call returns up to
     # MAX_FETCH full entities — tracing those to LangSmith serializes tens of MB
     # per call (and trips its 26 MB ingest cap with a 422). There's nothing worth
@@ -240,11 +241,15 @@ async def _build(min_employees: int, date_from: str, date_to: str) -> dict[str, 
 
 
 async def build_dashboard(
-    min_employees: int, date_from: str, date_to: str
+    kg: DiffbotKnowledgeGraphTool, min_employees: int, date_from: str, date_to: str
 ) -> dict[str, Any]:
-    """Build the dashboard payload, surfacing any failure as an `error` field."""
+    """Build the dashboard payload, surfacing any failure as an `error` field.
+
+    `kg` must carry an `async_client` — the two KG queries run on the event loop.
+    The caller owns the client so the dashboard reuses the app's connection pool.
+    """
     try:
-        return await _build(min_employees, date_from, date_to)
+        return await _build(kg, min_employees, date_from, date_to)
     except Exception as exc:  # surface to the UI instead of a 500
         return {
             "min_employees": min_employees,

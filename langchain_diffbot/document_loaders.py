@@ -55,9 +55,11 @@ class DiffbotExtractLoader(_BaseDiffbotComponent, BaseLoader):
 
     Example:
         ```python
+        from diffbot import Diffbot
         from langchain_diffbot import DiffbotExtractLoader
 
         docs = DiffbotExtractLoader(
+            client=Diffbot(token=...),
             urls=["https://example.com", "https://diffbot.com"],
         ).load()
         ```

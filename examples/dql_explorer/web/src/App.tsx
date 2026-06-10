@@ -1,12 +1,14 @@
 import { useState } from "react";
+import { Ask } from "./Ask";
 import { Dashboard } from "./Dashboard";
 import { Explorer } from "./Explorer";
 
-type Tab = "dashboard" | "explorer";
+type Tab = "dashboard" | "explorer" | "ask";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "dashboard", label: "M&A / IPO Dashboard" },
   { id: "explorer", label: "DQL Builder" },
+  { id: "ask", label: "Ask Diffbot" },
 ];
 
 export function App() {
@@ -39,9 +41,12 @@ export function App() {
         ))}
       </nav>
 
-      {/* Keep both mounted so switching tabs preserves each one's state. */}
+      {/* Keep each mounted so switching tabs preserves its state. */}
       <div className={tab === "explorer" ? "" : "hidden"}>
         <Explorer />
+      </div>
+      <div className={tab === "ask" ? "" : "hidden"}>
+        <Ask />
       </div>
       {dashboardSeen && (
         <div className={tab === "dashboard" ? "" : "hidden"}>

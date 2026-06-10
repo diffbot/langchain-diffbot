@@ -6,7 +6,7 @@ import argparse
 import sys
 
 from dotenv import load_dotenv
-from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langchain.messages import AIMessage, HumanMessage, ToolMessage
 
 from company_research.agent import build_agent
 

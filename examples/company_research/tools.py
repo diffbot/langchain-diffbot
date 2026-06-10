@@ -19,11 +19,13 @@ Each tool is a thin `@tool` wrapper that:
 
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 from typing import Any
 
+from diffbot import Diffbot
 from diffbot.errors import APIError
-from langchain_core.tools import tool
+from langchain.tools import tool
 
 from langchain_diffbot import (
     DiffbotDQLProbeTool,
@@ -53,14 +55,23 @@ _EXTRACT_CONTENT_CHARS = 4000
 
 
 @lru_cache(maxsize=1)
+def _db() -> Diffbot:
+    # One client shared across every Diffbot-backed tool below, so the whole
+    # agent run reuses a single connection pool. Lazy so importing this module
+    # doesn't require DIFFBOT_API_TOKEN. This agent is sync (the CLI calls
+    # `agent.invoke`), so a sync `Diffbot` is all we need.
+    return Diffbot(token=os.environ["DIFFBOT_API_TOKEN"])
+
+
+@lru_cache(maxsize=1)
 def _kg_retriever() -> DiffbotKnowledgeGraphRetriever:
-    # Lazy so importing this module doesn't require DIFFBOT_API_TOKEN.
-    return DiffbotKnowledgeGraphRetriever(k=5, fields=_KG_FIELDS)
+    return DiffbotKnowledgeGraphRetriever(client=_db(), k=5, fields=_KG_FIELDS)
 
 
 @lru_cache(maxsize=1)
 def _web_retriever() -> DiffbotWebSearchRetriever:
     return DiffbotWebSearchRetriever(
+        client=_db(),
         k=_WEB_SEARCH_K,
         fields=["title", "pageUrl", "score"],
     )
@@ -68,18 +79,18 @@ def _web_retriever() -> DiffbotWebSearchRetriever:
 
 @lru_cache(maxsize=1)
 def _extract_tool() -> DiffbotExtractTool:
-    return DiffbotExtractTool()
+    return DiffbotExtractTool(client=_db())
 
 
 @lru_cache(maxsize=1)
 def _ontology_tool() -> DiffbotOntologyTool:
     # Cached so the fetched ontology is reused across the whole agent run.
-    return DiffbotOntologyTool()
+    return DiffbotOntologyTool(client=_db())
 
 
 @lru_cache(maxsize=1)
 def _probe_tool() -> DiffbotDQLProbeTool:
-    return DiffbotDQLProbeTool()
+    return DiffbotDQLProbeTool(client=_db())
 
 
 @tool

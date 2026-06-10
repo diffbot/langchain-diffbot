@@ -1,9 +1,10 @@
 """LangChain integration for Diffbot.
 
-Thin layer over the official `diffbot-python` SDK. Every public class accepts
-either a `diffbot_api_token` (or `DIFFBOT_API_TOKEN` env var) or a pre-built
-`diffbot.Diffbot` / `diffbot.DiffbotAsync` client via the `client` /
-`async_client` fields — anything the SDK can do, you can do via these classes.
+Thin layer over the official `diffbot-python` SDK. Every public class takes a
+pre-built `diffbot.Diffbot` (sync) and/or `diffbot.DiffbotAsync` (async) client
+via the `client` / `async_client` fields — build the client yourself (token,
+`timeout`, `transport=`, custom URLs), pass it in, and share one across many
+components. Anything the SDK can do, you configure on the client.
 """
 
 from langchain_diffbot.chat_models import ChatDiffbot
@@ -16,6 +17,7 @@ from langchain_diffbot.retrievers import (
     DiffbotWebSearchRetriever,
 )
 from langchain_diffbot.tools import (
+    DiffbotAskTool,
     DiffbotDQLProbeTool,
     DiffbotEntitiesTool,
     DiffbotExtractTool,
@@ -26,6 +28,7 @@ from langchain_diffbot.tools import (
 
 __all__ = [
     "ChatDiffbot",
+    "DiffbotAskTool",
     "DiffbotCrawlLoader",
     "DiffbotDQLProbeTool",
     "DiffbotEntitiesTool",

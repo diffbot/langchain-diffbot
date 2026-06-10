@@ -2,6 +2,7 @@ from langchain_diffbot import __all__
 
 EXPECTED = [
     "ChatDiffbot",
+    "DiffbotAskTool",
     "DiffbotCrawlLoader",
     "DiffbotDQLProbeTool",
     "DiffbotEntitiesTool",

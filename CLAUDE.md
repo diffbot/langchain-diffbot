@@ -18,11 +18,11 @@ Every public class calls `diffbot.Diffbot` / `diffbot.DiffbotAsync` methods dire
 
 Each class accepts the SDK's kwargs by name. The only renames are LangChain-convention: `size` → `k` on the KG retriever, `num_results` → `k` on the web-search retriever. Everything else (`from_`, `filter`, `format`, `exportspec`, `extra`, `max_tokens`, `api`, `fmt`, `lang`) keeps its SDK name.
 
-### Bring-your-own-client
+### Client-only: the SDK client is the single configuration surface
 
-`_BaseDiffbotComponent` (in `_base.py`) gives every class four optional fields: `diffbot_api_token`, `timeout`, `client`, `async_client`. The `client` / `async_client` fields take a pre-built `diffbot.Diffbot` / `diffbot.DiffbotAsync`. When supplied, we use it as-is and **do not close it** — the user owns the lifecycle. When not supplied, we construct a fresh SDK client per call (matching the legacy per-call lifecycle).
+`_BaseDiffbotComponent` (in `_base.py`) gives every class exactly two fields: `client` (a `diffbot.Diffbot`) and `async_client` (a `diffbot.DiffbotAsync`). The caller builds the SDK client and passes it in; `_sync_db` / `_async_db` yield it as-is and **never close it** (the caller owns the lifecycle), and raise a clear error if the matching client is missing. There is no `diffbot_api_token` / `timeout` on components and no per-call client construction — the component never builds a client itself.
 
-This is the escape hatch for anything the SDK supports that we don't re-expose: custom URLs (`analyze_url`, `web_search_url`, …), `transport=httpx.MockTransport(...)` for tests, shared connection pools, custom headers. We don't have to mirror each knob — the user just passes a configured client.
+This is deliberate: there is one way to give a component HTTP access (hand it a client), and one place to configure the SDK (the client you build). Everything the SDK supports — token, `timeout`, custom URLs (`analyze_url`, `web_search_url`, …), `transport=` (logging/retries/headers, or `httpx.MockTransport(...)` in tests) — is set on that client, not mirrored as component fields. Share one client across many components to reuse a single connection pool. Pick the execution mode by which client you build: `Diffbot` for the sync surface, `DiffbotAsync` for the async surface, both if a component is used both ways. Unit tests still mock at the httpx layer with `respx`, so they construct a `Diffbot(token="t")` and pass `client=`/`async_client=` without needing a real transport.
 
 ### Both sync and async are implemented natively
 
@@ -50,6 +50,23 @@ The intended agent loop is **introspect (ontology) → probe → run (`DiffbotKn
 ### Admin / utility SDK methods are not wrapped
 
 Methods like `crawl_list_jobs`, `crawl_get_job`, `crawl_delete_job`, and `dql_refresh_ontology` don't fit cleanly as LangChain primitives. We don't wrap them, but since every component exposes `.client` / `.async_client`, users can reach them directly.
+
+## Documentation
+
+Four documents describe this package; keep them all accurate when things change:
+
+| File | Audience | Owns |
+|------|----------|------|
+| `README.md` | GitHub / PyPI readers | Complete reference — install, auth, all classes, examples |
+| `providers/diffbot.mdx` (langchain-docs) | Docs site — Diffbot landing page | Overview only: install, auth, components table, links to detail pages |
+| `tools/diffbot.mdx` (langchain-docs) | Docs site — tools reference | Full tool documentation with examples |
+| `retrievers/diffbot.mdx` (langchain-docs) | Docs site — retrievers reference | Full retriever documentation with examples |
+
+The langchain-docs pages link to each other rather than duplicate content. Use the `sync-langchain-docs` skill to update whichever pages need it. The local docs checkout is expected at sibling `../langchain-docs` (overridable via `$LANGCHAIN_DOCS_REPO`).
+
+**The docs repo leads on prose quality.** If validation fixes are made to the docs pages (Vale, CI, editorial review), propagate those improvements back to `README.md` — don't let the README drift to a lower standard.
+
+Two unit suites keep the README in lockstep with the package: `tests/unit_tests/test_readme_parity.py` (the `## Components reference` table matches `__all__`, every class is documented, every example builds a client) and `tests/unit_tests/test_readme_examples.py` (every executable example runs under `respx` mocks; the crawl example is documented but not executed — flagged via `tests/readme.py`'s `is_executable`). `tests/integration_tests/test_readme_examples.py` runs the same blocks live.
 
 ## Commands
 
@@ -93,11 +110,11 @@ make verify-release        # install from PyPI in a throwaway venv
 ```
 langchain_diffbot/
 ├── __init__.py            # public re-exports — every user-facing class listed in __all__
-├── _base.py               # _BaseDiffbotComponent — token / timeout / client lifecycle helper
+├── _base.py               # _BaseDiffbotComponent — holds client / async_client; yields them per call (never closes)
 ├── chat_models.py         # ChatDiffbot (wraps `ask`)
 ├── document_loaders.py    # DiffbotExtractLoader, DiffbotCrawlLoader
 ├── retrievers.py          # DiffbotKnowledgeGraphRetriever, DiffbotWebSearchRetriever
-├── tools.py               # DiffbotExtractTool, DiffbotWebSearchTool, DiffbotEntitiesTool, DiffbotKnowledgeGraphTool, DiffbotOntologyTool, DiffbotDQLProbeTool
+├── tools.py               # DiffbotExtractTool, DiffbotWebSearchTool, DiffbotEntitiesTool, DiffbotKnowledgeGraphTool, DiffbotAskTool, DiffbotOntologyTool, DiffbotDQLProbeTool
 └── py.typed               # PEP 561 marker
 tests/
 ├── unit_tests/            # no network — use respx to mock the SDK's httpx calls

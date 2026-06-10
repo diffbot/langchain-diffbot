@@ -5,7 +5,7 @@ from __future__ import annotations
 import httpx
 import pytest
 import respx
-from diffbot import Diffbot
+from diffbot import Diffbot, DiffbotAsync
 from langchain_core.documents import Document
 
 from langchain_diffbot import DiffbotKnowledgeGraphRetriever
@@ -40,22 +40,24 @@ SAMPLE_BODY = {
 }
 
 
-def test_requires_token(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("DIFFBOT_API_TOKEN", raising=False)
-    with pytest.raises(ValueError, match="Diffbot API token"):
-        DiffbotKnowledgeGraphRetriever()
-
-
-def test_reads_token_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("DIFFBOT_API_TOKEN", "env-token")
+def test_sync_call_requires_client() -> None:
+    # No client supplied: construction succeeds, but the sync surface raises a
+    # clear error when invoked (the component never builds a client itself).
     r = DiffbotKnowledgeGraphRetriever()
-    assert r.diffbot_api_token.get_secret_value() == "env-token"
+    with pytest.raises(ValueError, match="no sync client"):
+        r.invoke("type:Organization")
+
+
+async def test_async_call_requires_async_client() -> None:
+    r = DiffbotKnowledgeGraphRetriever()
+    with pytest.raises(ValueError, match="no async client"):
+        await r.ainvoke("type:Organization")
 
 
 @respx.mock
 def test_invoke_maps_entities_to_documents() -> None:
     respx.get(f"{DQL_URL}").mock(return_value=httpx.Response(200, json=SAMPLE_BODY))
-    r = DiffbotKnowledgeGraphRetriever(diffbot_api_token="t", k=2)
+    r = DiffbotKnowledgeGraphRetriever(client=Diffbot(token="t"), k=2)
     docs = r.invoke("type:Organization")
     assert len(docs) == 2
     assert all(isinstance(d, Document) for d in docs)
@@ -80,7 +82,7 @@ def test_invoke_handles_flat_entity_shape() -> None:
         ]
     }
     respx.get(f"{DQL_URL}").mock(return_value=httpx.Response(200, json=flat_body))
-    r = DiffbotKnowledgeGraphRetriever(diffbot_api_token="t")
+    r = DiffbotKnowledgeGraphRetriever(client=Diffbot(token="t"))
     [doc] = r.invoke("type:Organization")
     assert doc.page_content == "x"
     assert doc.metadata["name"] == "Flat Co"
@@ -91,7 +93,7 @@ def test_invoke_k_kwarg_overrides_default() -> None:
     route = respx.get(f"{DQL_URL}").mock(
         return_value=httpx.Response(200, json=SAMPLE_BODY)
     )
-    r = DiffbotKnowledgeGraphRetriever(diffbot_api_token="t", k=10)
+    r = DiffbotKnowledgeGraphRetriever(client=Diffbot(token="t"), k=10)
     r.invoke("type:Organization", k=3)
     assert route.calls.last.request.url.params["size"] == "3"
 
@@ -99,7 +101,7 @@ def test_invoke_k_kwarg_overrides_default() -> None:
 @respx.mock
 def test_invoke_rejects_invalid_k() -> None:
     respx.get(f"{DQL_URL}").mock(return_value=httpx.Response(200, json=SAMPLE_BODY))
-    r = DiffbotKnowledgeGraphRetriever(diffbot_api_token="t")
+    r = DiffbotKnowledgeGraphRetriever(client=Diffbot(token="t"))
     with pytest.raises(ValueError, match="positive integer"):
         r.invoke("type:Organization", k=0)
 
@@ -107,7 +109,7 @@ def test_invoke_rejects_invalid_k() -> None:
 @respx.mock
 async def test_ainvoke_maps_entities_to_documents() -> None:
     respx.get(f"{DQL_URL}").mock(return_value=httpx.Response(200, json=SAMPLE_BODY))
-    r = DiffbotKnowledgeGraphRetriever(diffbot_api_token="t", k=2)
+    r = DiffbotKnowledgeGraphRetriever(async_client=DiffbotAsync(token="t"), k=2)
     docs = await r.ainvoke("type:Organization")
     assert [d.metadata["id"] for d in docs] == ["E1", "E2"]
 
@@ -137,7 +139,7 @@ FAT_BODY = {
 def test_fields_projection_narrows_metadata() -> None:
     respx.get(f"{DQL_URL}").mock(return_value=httpx.Response(200, json=FAT_BODY))
     r = DiffbotKnowledgeGraphRetriever(
-        diffbot_api_token="t",
+        client=Diffbot(token="t"),
         fields=["id", "name", "homepageUri", "nbEmployees"],
     )
     [doc] = r.invoke("type:Organization")
@@ -156,7 +158,7 @@ def test_fields_excludes_chosen_content_field() -> None:
     # because it was promoted to `page_content`.
     respx.get(f"{DQL_URL}").mock(return_value=httpx.Response(200, json=FAT_BODY))
     r = DiffbotKnowledgeGraphRetriever(
-        diffbot_api_token="t",
+        client=Diffbot(token="t"),
         fields=["id", "name", "description"],
     )
     [doc] = r.invoke("type:Organization")
@@ -178,7 +180,7 @@ def test_content_fields_priority_is_configurable() -> None:
     }
     respx.get(f"{DQL_URL}").mock(return_value=httpx.Response(200, json=body))
     r = DiffbotKnowledgeGraphRetriever(
-        diffbot_api_token="t",
+        client=Diffbot(token="t"),
         content_fields=["summary", "description", "name"],
     )
     [doc] = r.invoke("type:Organization")
@@ -199,7 +201,7 @@ def test_document_mapper_overrides_default() -> None:
         )
 
     r = DiffbotKnowledgeGraphRetriever(
-        diffbot_api_token="t",
+        client=Diffbot(token="t"),
         # These should be ignored when document_mapper is set.
         fields=["nbEmployees"],
         content_fields=["description"],
@@ -217,7 +219,7 @@ def test_sdk_kwargs_pass_through() -> None:
     # job to test), but the params should at least show up.
     route = respx.get(DQL_URL).mock(return_value=httpx.Response(200, json=SAMPLE_BODY))
     r = DiffbotKnowledgeGraphRetriever(
-        diffbot_api_token="t",
+        client=Diffbot(token="t"),
         k=5,
         from_=10,
         filter="type:Organization",
@@ -232,10 +234,10 @@ def test_sdk_kwargs_pass_through() -> None:
 
 
 @respx.mock
-def test_client_passthrough_uses_provided_diffbot() -> None:
-    # If the user supplies a pre-built client, we use it as-is and don't close
-    # it. After two retrieve calls the client should still be usable, proving
-    # it wasn't closed between calls.
+def test_client_is_reused_and_not_closed() -> None:
+    # The component uses the supplied client as-is and never closes it. After two
+    # retrieve calls the client should still be usable, and the same client can be
+    # shared across components (one connection pool).
     respx.get(DQL_URL).mock(return_value=httpx.Response(200, json=SAMPLE_BODY))
     db = Diffbot(token="t", timeout=5.0)
     r = DiffbotKnowledgeGraphRetriever(client=db, k=1)
@@ -243,16 +245,4 @@ def test_client_passthrough_uses_provided_diffbot() -> None:
     r.invoke("name:Beta")
     # Direct SDK call still works — confirms we didn't close the user's client.
     assert isinstance(db.dql("name:Charlie", size=1), dict)
-    db.close()
-
-
-def test_client_passthrough_skips_token_requirement(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    # When a client is supplied, no token is needed at construction time.
-    monkeypatch.delenv("DIFFBOT_API_TOKEN", raising=False)
-    db = Diffbot(token="t")
-    r = DiffbotKnowledgeGraphRetriever(client=db)
-    # No exception even though there's no token field set.
-    assert r.diffbot_api_token is None
     db.close()

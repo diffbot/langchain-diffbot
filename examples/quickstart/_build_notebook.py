@@ -37,8 +37,8 @@ This notebook walks through every public surface in `langchain-diffbot`:
 5. **Web Search retriever** — natural-language web search backed by Diffbot
 6. **Extract tool + loader** — fetch and read individual URLs
 7. **Entities tool** — NLP entity / sentiment extraction
-8. **ChatDiffbot** — Diffbot's own LLM RAG endpoint, with native streaming
-9. **Bring-your-own-client** — pre-built SDK clients for full transport control
+8. **ChatDiffbot + DiffbotAskTool** — Diffbot's own LLM RAG endpoint, with native streaming
+9. **Configuring the client** — timeout, transport, custom URLs all live on the client
 10. A **multi-tool research agent** that combines KG + web search + extract
 
 You'll need:
@@ -55,13 +55,16 @@ code("""%pip install --quiet \\
     langchain-diffbot \\
     langchain langchain-anthropic python-dotenv""")
 
-md("""## 2. Authenticate
+md("""## 2. Authenticate and build a client
 
-Put your keys in a `.env` next to this notebook, or paste them inline below. `getpass` keeps them out of the notebook output.""")
+Put your keys in a `.env` next to this notebook, or paste them inline below. `getpass` keeps them out of the notebook output.
+
+Every component in this package takes a pre-built SDK client. Build one `Diffbot` (sync) and one `DiffbotAsync` (async) here and share them across every section below — one connection pool each, configured in one place. The components use these as-is and never close them; you own the lifecycle (we close them at the end).""")
 
 code("""import getpass
 import os
 
+from diffbot import Diffbot, DiffbotAsync
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -70,7 +73,12 @@ if not os.getenv("DIFFBOT_API_TOKEN"):
     os.environ["DIFFBOT_API_TOKEN"] = getpass.getpass("DIFFBOT_API_TOKEN: ")
 
 if not os.getenv("ANTHROPIC_API_KEY"):
-    os.environ["ANTHROPIC_API_KEY"] = getpass.getpass("ANTHROPIC_API_KEY: ")""")
+    os.environ["ANTHROPIC_API_KEY"] = getpass.getpass("ANTHROPIC_API_KEY: ")
+
+# Shared clients. `db` drives the sync surface (invoke / stream / load); `adb`
+# drives the async surface (ainvoke / astream) used in section 5.
+db = Diffbot(token=os.environ["DIFFBOT_API_TOKEN"])
+adb = DiffbotAsync(token=os.environ["DIFFBOT_API_TOKEN"])""")
 
 md("""## 3. Knowledge Graph retrieval
 
@@ -87,7 +95,7 @@ md("""## 3. Knowledge Graph retrieval
 
 code("""from langchain_diffbot import DiffbotKnowledgeGraphRetriever
 
-retriever = DiffbotKnowledgeGraphRetriever(k=5)
+retriever = DiffbotKnowledgeGraphRetriever(client=db, k=5)
 
 docs = retriever.invoke(
     'type:Organization industries:"Artificial Intelligence" location.city.name:"Boston"'
@@ -109,6 +117,7 @@ The same three knobs are available on `DiffbotWebSearchRetriever` (section 5) �
 ### 4a. Field projection (recommended for agent / tool-use)""")
 
 code("""retriever = DiffbotKnowledgeGraphRetriever(
+    client=db,
     k=3,
     fields=["id", "type", "name", "homepageUri", "nbEmployees", "industries"],
 )
@@ -122,6 +131,7 @@ for d in docs:
 md("""### 4b. Pick which field becomes `page_content`""")
 
 code("""retriever = DiffbotKnowledgeGraphRetriever(
+    client=db,
     k=3,
     fields=["id", "name"],
     content_fields=["summary", "description", "name"],
@@ -150,7 +160,7 @@ def mapper(entity: dict) -> Document:
     )
 
 
-retriever = DiffbotKnowledgeGraphRetriever(k=3, document_mapper=mapper)
+retriever = DiffbotKnowledgeGraphRetriever(client=db, k=3, document_mapper=mapper)
 
 for d in retriever.invoke('type:Organization industries:"Biotechnology" revSortBy:nbEmployees'):
     print(d.metadata, "—", d.page_content[:120])""")
@@ -161,7 +171,10 @@ Every retriever / tool / loader / chat model in this package implements both syn
 
 code("""import asyncio
 
-retriever = DiffbotKnowledgeGraphRetriever(k=3, fields=["id", "name", "industries"])
+# Async surface → pass the `DiffbotAsync` client. `ainvoke` runs on its pool.
+retriever = DiffbotKnowledgeGraphRetriever(
+    async_client=adb, k=3, fields=["id", "name", "industries"]
+)
 
 queries = [
     'type:Organization location.city.name:"Austin" industries:"Robotics"',
@@ -182,7 +195,7 @@ md("""## 6. Web Search retriever
 
 code("""from langchain_diffbot import DiffbotWebSearchRetriever
 
-web = DiffbotWebSearchRetriever(k=3, fields=["title", "pageUrl", "score"])
+web = DiffbotWebSearchRetriever(client=db, k=3, fields=["title", "pageUrl", "score"])
 
 for d in web.invoke("diffbot knowledge graph llm grounding"):
     print(d.metadata)
@@ -199,7 +212,7 @@ Diffbot's Analyze API turns a URL into structured markdown. The package exposes 
 
 code("""from langchain_diffbot import DiffbotExtractTool
 
-extract = DiffbotExtractTool()
+extract = DiffbotExtractTool(client=db)
 result = extract.invoke({"url": "https://www.diffbot.com/products/extract/"})
 
 print("title:", result["title"])
@@ -213,6 +226,7 @@ md("""### 7b. Extract loader (batch URLs into Documents)
 code("""from langchain_diffbot import DiffbotExtractLoader
 
 loader = DiffbotExtractLoader(
+    client=db,
     urls=[
         "https://www.diffbot.com/products/extract/",
         "https://www.diffbot.com/products/kg/",
@@ -236,7 +250,7 @@ md("""## 8. Entities tool
 
 code("""from langchain_diffbot import DiffbotEntitiesTool
 
-entities = DiffbotEntitiesTool()
+entities = DiffbotEntitiesTool(client=db)
 result = entities.invoke({
     "text": "Anthropic, founded by Dario Amodei and Daniela Amodei in 2021, released Claude in 2023."
 })
@@ -250,9 +264,9 @@ md("""## 9. ChatDiffbot
 `ChatDiffbot` wraps Diffbot's own LLM RAG endpoint as a LangChain `BaseChatModel`. It streams tokens natively, so both `.stream()` and `.astream()` work out of the box — and `.invoke()` aggregates the stream for you.""")
 
 code("""from langchain_diffbot import ChatDiffbot
-from langchain_core.messages import HumanMessage
+from langchain.messages import HumanMessage
 
-llm = ChatDiffbot()
+llm = ChatDiffbot(client=db)
 
 # Streaming
 print("streaming: ", end="", flush=True)
@@ -264,20 +278,28 @@ code("""# Or invoke to get a single message back
 msg = llm.invoke([HumanMessage(content="Who founded Anthropic?")])
 print(msg.content)""")
 
-md("""## 10. Bring-your-own-client
+md(
+    """`ChatDiffbot` uses Diffbot's LLM as your *primary* model. To instead let a tool-calling agent (driven by, say, Claude) *consult* Diffbot, give it `DiffbotAskTool` — it answers a natural-language question from the KG + live web and returns a string."""
+)
 
-Every class in the package accepts a pre-built `diffbot.Diffbot` (or `diffbot.DiffbotAsync`) via the `client` / `async_client` fields. When you supply one, the package uses it as-is and **does not close it** — you own the lifecycle. This is the escape hatch for anything the SDK supports that we don't re-expose: custom URLs, `transport=`, shared connection pools, custom headers.""")
+code("""from langchain_diffbot import DiffbotAskTool
+
+ask = DiffbotAskTool(client=db)
+print(ask.invoke({"question": "Who founded Diffbot, and when?"}))""")
+
+md("""## 10. Configuring the client
+
+There's no separate configuration surface on the components — everything the SDK supports is set on the client you build: `timeout`, a custom `transport=` (for logging / retries / mock transports in tests), or custom endpoint URLs. Build the client however you need and pass it in; share one across components to reuse its connection pool.""")
 
 code("""from diffbot import Diffbot
 
-# Share one Diffbot client across many retriever calls instead of opening a
-# fresh httpx pool per call. Useful in long-running services.
-shared = Diffbot(token=os.environ["DIFFBOT_API_TOKEN"], timeout=60.0)
+# e.g. a longer timeout for big exports. Customize the client, not the component.
+custom = Diffbot(token=os.environ["DIFFBOT_API_TOKEN"], timeout=60.0)
 
-retriever = DiffbotKnowledgeGraphRetriever(client=shared, k=3, fields=["id", "name"])
+retriever = DiffbotKnowledgeGraphRetriever(client=custom, k=3, fields=["id", "name"])
 print(retriever.invoke('type:Organization name:"Diffbot"'))
 
-shared.close()""")
+custom.close()  # you own the lifecycle of clients you build""")
 
 md("""## 11. Multi-tool research agent
 
@@ -288,7 +310,7 @@ from typing import Any
 
 from diffbot.errors import APIError
 from langchain.agents import create_agent
-from langchain_core.tools import tool
+from langchain.tools import tool
 
 from langchain_diffbot import (
     DiffbotExtractTool,
@@ -304,17 +326,17 @@ _KG_FIELDS = [
 
 @lru_cache(maxsize=1)
 def _kg() -> DiffbotKnowledgeGraphRetriever:
-    return DiffbotKnowledgeGraphRetriever(k=5, fields=_KG_FIELDS)
+    return DiffbotKnowledgeGraphRetriever(client=db, k=5, fields=_KG_FIELDS)
 
 
 @lru_cache(maxsize=1)
 def _web() -> DiffbotWebSearchRetriever:
-    return DiffbotWebSearchRetriever(k=5, fields=["title", "pageUrl", "score"])
+    return DiffbotWebSearchRetriever(client=db, k=5, fields=["title", "pageUrl", "score"])
 
 
 @lru_cache(maxsize=1)
 def _extract() -> DiffbotExtractTool:
-    return DiffbotExtractTool()
+    return DiffbotExtractTool(client=db)
 
 
 @tool

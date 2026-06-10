@@ -69,11 +69,16 @@ class DiffbotKnowledgeGraphRetriever(_BaseDiffbotComponent, BaseRetriever):
     [DQL](https://docs.diffbot.com/reference/dql-quickstart) expression
     (e.g. `type:Organization industries:"Artificial Intelligence"`).
 
+    Build a `diffbot.Diffbot` (sync) and/or `diffbot.DiffbotAsync` (async) and
+    pass it in; the same client can be shared across many components.
+
     Example:
         ```python
+        from diffbot import Diffbot
         from langchain_diffbot import DiffbotKnowledgeGraphRetriever
 
-        retriever = DiffbotKnowledgeGraphRetriever(k=5)
+        db = Diffbot(token=..., timeout=60.0)
+        retriever = DiffbotKnowledgeGraphRetriever(client=db, k=5)
         retriever.invoke('type:Organization location.city.name:"Boston"')
         ```
 
@@ -82,6 +87,7 @@ class DiffbotKnowledgeGraphRetriever(_BaseDiffbotComponent, BaseRetriever):
 
         ```python
         retriever = DiffbotKnowledgeGraphRetriever(
+            client=db,
             k=5,
             fields=["id", "type", "name", "homepageUri", "nbEmployees"],
         )
@@ -96,16 +102,7 @@ class DiffbotKnowledgeGraphRetriever(_BaseDiffbotComponent, BaseRetriever):
                 metadata={"id": entity["id"], "name": entity["name"]},
             )
 
-        retriever = DiffbotKnowledgeGraphRetriever(document_mapper=mapper)
-        ```
-
-    For full SDK control, supply a pre-built client:
-
-        ```python
-        from diffbot import Diffbot
-        retriever = DiffbotKnowledgeGraphRetriever(
-            client=Diffbot(token=..., timeout=60.0),
-        )
+        retriever = DiffbotKnowledgeGraphRetriever(client=db, document_mapper=mapper)
         ```
     """
 
@@ -232,9 +229,10 @@ class DiffbotWebSearchRetriever(_BaseDiffbotComponent, BaseRetriever):
 
     Example:
         ```python
+        from diffbot import Diffbot
         from langchain_diffbot import DiffbotWebSearchRetriever
 
-        retriever = DiffbotWebSearchRetriever(k=5)
+        retriever = DiffbotWebSearchRetriever(client=Diffbot(token=...), k=5)
         retriever.invoke("diffbot knowledge graph")
         ```
     """

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import httpx
 import respx
+from diffbot import Diffbot, DiffbotAsync
 from diffbot.crawl import CrawlEvent, CrawlEventType
 
 from langchain_diffbot import DiffbotCrawlLoader, DiffbotExtractLoader
@@ -29,7 +30,7 @@ def test_extract_loader_yields_one_document_per_url() -> None:
         )
     )
     loader = DiffbotExtractLoader(
-        diffbot_api_token="t",
+        client=Diffbot(token="t"),
         urls=["https://example.com", "https://example.com/2"],
     )
     docs = list(loader.lazy_load())
@@ -46,7 +47,9 @@ async def test_extract_loader_alazy_load() -> None:
             200, json={"objects": [{"text": "x", "title": "t"}]}
         )
     )
-    loader = DiffbotExtractLoader(diffbot_api_token="t", urls=["https://example.com"])
+    loader = DiffbotExtractLoader(
+        async_client=DiffbotAsync(token="t"), urls=["https://example.com"]
+    )
     docs = [d async for d in loader.alazy_load()]
     assert len(docs) == 1
     assert docs[0].page_content == "x"
@@ -55,7 +58,7 @@ async def test_extract_loader_alazy_load() -> None:
 def test_crawl_loader_default_mapper_filters_to_url_events() -> None:
     # Bypass the SDK by stubbing `_kwargs` and feeding events through the mapper
     # directly — the crawl SDK path is integration-tested upstream.
-    loader = DiffbotCrawlLoader(diffbot_api_token="t", site="https://example.com")
+    loader = DiffbotCrawlLoader(client=Diffbot(token="t"), site="https://example.com")
     job_event = CrawlEvent(
         event_type=CrawlEventType.JOB_CREATED,
         timestamp="now",
@@ -88,7 +91,7 @@ def test_crawl_loader_custom_event_mapper() -> None:
         )
 
     loader = DiffbotCrawlLoader(
-        diffbot_api_token="t", site="https://example.com", event_mapper=mapper
+        client=Diffbot(token="t"), site="https://example.com", event_mapper=mapper
     )
     job_event = CrawlEvent(
         event_type=CrawlEventType.JOB_CREATED,
@@ -102,13 +105,13 @@ def test_crawl_loader_custom_event_mapper() -> None:
 
 
 def test_crawl_loader_defaults_watch_true() -> None:
-    loader = DiffbotCrawlLoader(diffbot_api_token="t", site="https://example.com")
+    loader = DiffbotCrawlLoader(client=Diffbot(token="t"), site="https://example.com")
     assert loader._kwargs() == {"watch": True}
 
 
 def test_crawl_loader_user_can_override_watch() -> None:
     loader = DiffbotCrawlLoader(
-        diffbot_api_token="t",
+        client=Diffbot(token="t"),
         site="https://example.com",
         crawl_kwargs={"watch": False, "hops": 3},
     )

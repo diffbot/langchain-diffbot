@@ -1,12 +1,14 @@
 # DQL Explorer
 
-A small web app with two tabs over the Diffbot Knowledge Graph:
+A small web app with three tabs over the Diffbot Knowledge Graph:
 
 - **M&A / IPO Dashboard** — a parameterized view of recent acquisitions and IPOs,
   broken down by industry, geography, and time with donut/bar charts.
 - **DQL Builder** — type a question in plain English, and a LangChain agent turns
   it into a valid [DQL](https://docs.diffbot.com/reference/dql-quickstart) query,
   runs it, and shows the results as a table.
+- **Ask Diffbot** — type a question and Diffbot's own RAG LLM answers it directly,
+  streaming the response token by token.
 
 ## DQL Builder
 
@@ -33,6 +35,17 @@ No model is involved — it's a deterministic roll-up of real KG data, and the t
 queries are shown in the UI ("DQL behind this dashboard"). Tune the size floor
 and date range, then **Refresh** to re-query. The charts are dependency-free SVG
 (`charts.tsx`), so the example pulls in no charting library.
+
+## Ask Diffbot
+
+The package's `ChatDiffbot` — a LangChain `BaseChatModel` wrapping Diffbot's own
+LLM RAG endpoint. Where the DQL Builder *authors* a precise query (and so needs a
+tool-calling model like Claude), this tab just asks Diffbot's LLM, which is
+grounded in the Knowledge Graph and the live web. `ChatDiffbot.astream` streams
+tokens natively, so the backend (`POST /api/ask`) forwards each chunk to the
+browser as a [Server-Sent Event](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events)
+and the answer renders as it arrives — no buffering, no extra LLM provider, no API
+key beyond `DIFFBOT_API_TOKEN`.
 
 ## Prerequisites
 
@@ -92,14 +105,15 @@ When unset, the app works exactly the same — just no trace link.
 dql_explorer/
 ├── agent.py        # create_agent + DQLPlan structured output + ontology/probe tools
 ├── dashboard.py    # M&A/IPO DQL templates + Python roll-up into chart breakdowns
-├── server.py       # FastAPI: POST /api/query, POST /api/dashboard, serves the SPA
+├── server.py       # FastAPI: POST /api/query, /api/dashboard, /api/ask; serves the SPA
 ├── projection.py   # dot-path projection of KG entities into table rows
 ├── __main__.py     # `python -m dql_explorer` → uvicorn
 ├── dev.sh          # one-command live-reload dev (backend + Vite together)
 └── web/            # React + TypeScript + Vite frontend (pnpm)
     └── src/
-        ├── App.tsx        # tab shell (Dashboard / DQL Builder)
+        ├── App.tsx        # tab shell (Dashboard / DQL Builder / Ask Diffbot)
         ├── Explorer.tsx   # DQL Builder: plain-English → DQL table
+        ├── Ask.tsx        # Ask Diffbot: ChatDiffbot answer, streamed via SSE
         ├── Dashboard.tsx  # M&A/IPO controls + charts
         └── charts.tsx     # dependency-free SVG donut / bar charts
 ```

@@ -1,9 +1,17 @@
 # `langchain-diffbot` examples
 
-A few ways to see the package in action, from a guided notebook to a CLI and a
-browser app. Each talks to the live Diffbot APIs (and the agent-based examples
-also use an Anthropic model). Every example below has its own README covering
-setup and how to run it.
+A few ways to see the package in action, from a browser app to a guided
+notebook and a CLI. Each talks to the live Diffbot APIs (and the agent-based
+examples also use an Anthropic model). Every example below has its own README
+covering setup and how to run it.
+
+## Web app
+
+[`dql_explorer/`](./dql_explorer) is a browser UI for the DQL-authoring loop:
+type a question in plain English, and an agent inspects the ontology, probes
+query variants, writes the DQL, and the results come back as a table. It also
+has an M&A / IPO dashboard. It's a FastAPI backend serving a React + TypeScript
+frontend, with optional LangSmith tracing.
 
 ## Notebook
 
@@ -24,11 +32,3 @@ setup and how to run it.
 one-shot command-line tool: ask a company-research question in plain English and
 the agent searches the Knowledge Graph and the live web, then cites the entity
 IDs / URLs it used. Useful for shell scripting or quick spot checks.
-
-## Web app
-
-[`dql_explorer/`](./dql_explorer) is a browser UI for the DQL-authoring loop:
-type a question in plain English, and an agent inspects the ontology, probes
-query variants, writes the DQL, and the results come back as a table. It also
-has an M&A / IPO dashboard. It's a FastAPI backend serving a React + TypeScript
-frontend, with optional LangSmith tracing.
