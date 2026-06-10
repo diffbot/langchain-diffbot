@@ -343,11 +343,3 @@ Integration tests hit the live Diffbot API and require `DIFFBOT_API_TOKEN`:
 uv run pytest tests/integration_tests
 ```
 
-### Prose linting
-
-This README is the source of truth for the [LangChain integration page](https://docs.langchain.com), generated from it by the `sync-langchain-docs` workflow. Its prose is linted against the LangChain docs house style with [Vale](https://vale.sh) (config under `.vale.ini` and `.github/vale/styles/`, copied from `langchain-ai/docs`), so it stays publishable. Vale is a standalone binary, not a Python package — install it separately, then run the linter:
-
-```bash
-brew install vale            # macOS; for other platforms see https://vale.sh/docs/install
-make lint_prose              # lints README.md, errors only (the docs-repo CI gate)
-```

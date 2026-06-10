@@ -1,4 +1,4 @@
-.PHONY: format lint lint_prose test test_integration typing build clean bump-patch bump-minor bump-major set-token-pypi set-token-testpypi release-test release verify-release-test verify-release
+.PHONY: format lint test test_integration typing build clean bump-patch bump-minor bump-major set-token-pypi set-token-testpypi release-test release verify-release-test verify-release
 
 format:
 	uv run --group lint ruff format .
@@ -7,14 +7,6 @@ format:
 lint:
 	uv run --group lint ruff check .
 	uv run --group lint ruff format --check .
-
-# Lint README.md prose against the LangChain docs house style (Vale). The config
-# in .vale.ini + .github/vale/styles/ is copied from langchain-ai/docs, so the
-# README passes the same gate its generated provider page faces (see the
-# sync-langchain-docs skill). Fenced code blocks and frontmatter are skipped.
-lint_prose:
-	@command -v vale >/dev/null 2>&1 || { echo "Vale not found; install with: brew install vale"; exit 1; }
-	vale README.md
 
 test:
 	uv run --group test pytest tests/unit_tests

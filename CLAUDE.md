@@ -53,15 +53,18 @@ Methods like `crawl_list_jobs`, `crawl_get_job`, `crawl_delete_job`, and `dql_re
 
 ## Documentation
 
-`README.md` is the **single source of truth** for this package's docs. The Diffbot provider page on the LangChain docs site (`src/oss/python/integrations/providers/diffbot.mdx` in `langchain-ai/docs`) is **generated from it** by the `sync-langchain-docs` skill — never hand-edit that page; edit `README.md` and sync on request. The skill resolves the local docs checkout (sibling `../langchain-docs` by default, overridable via `$LANGCHAIN_DOCS_REPO`) and converts the README to MDX (frontmatter, `<CodeGroup>` install block, absolute links, dropping the CI badge + Development section).
+Four documents describe this package; keep them all accurate when things change:
 
-**After any change to `README.md`, lint its prose** against the LangChain docs house style:
+| File | Audience | Owns |
+|------|----------|------|
+| `README.md` | GitHub / PyPI readers | Complete reference — install, auth, all classes, examples |
+| `providers/diffbot.mdx` (langchain-docs) | Docs site — Diffbot landing page | Overview only: install, auth, components table, links to detail pages |
+| `tools/diffbot.mdx` (langchain-docs) | Docs site — tools reference | Full tool documentation with examples |
+| `retrievers/diffbot.mdx` (langchain-docs) | Docs site — retrievers reference | Full retriever documentation with examples |
 
-```
-make lint_prose      # Vale on README.md (errors only — the same gate the docs-repo CI enforces)
-```
+The langchain-docs pages link to each other rather than duplicate content. Use the `sync-langchain-docs` skill to update whichever pages need it. The local docs checkout is expected at sibling `../langchain-docs` (overridable via `$LANGCHAIN_DOCS_REPO`).
 
-The Vale config (`.vale.ini` + `.github/vale/styles/`) is copied from `langchain-ai/docs`, so the README passes the same gate its generated page faces; fenced code blocks and frontmatter are skipped. It is a point-in-time copy — re-copy both if LangChain updates their styles. (Needs the `vale` binary: `brew install vale`.)
+**The docs repo leads on prose quality.** If validation fixes are made to the docs pages (Vale, CI, editorial review), propagate those improvements back to `README.md` — don't let the README drift to a lower standard.
 
 Two unit suites keep the README in lockstep with the package: `tests/unit_tests/test_readme_parity.py` (the `## Components reference` table matches `__all__`, every class is documented, every example builds a client) and `tests/unit_tests/test_readme_examples.py` (every executable example runs under `respx` mocks; the crawl example is documented but not executed — flagged via `tests/readme.py`'s `is_executable`). `tests/integration_tests/test_readme_examples.py` runs the same blocks live.
 
@@ -70,7 +73,6 @@ Two unit suites keep the README in lockstep with the package: `tests/unit_tests/
 ```
 make format          # ruff format + ruff check --fix
 make lint            # ruff check + ruff format --check
-make lint_prose      # Vale prose lint on README.md (needs `vale`)
 make typing          # mypy on the package
 make test            # unit tests
 make test_integration  # integration tests (needs DIFFBOT_API_TOKEN)

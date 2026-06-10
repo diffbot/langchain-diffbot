@@ -1,119 +1,114 @@
 ---
 name: sync-langchain-docs
-description: "Generate the Diffbot provider page on the LangChain docs site from this repo's canonical README.md, then open a PR against langchain-ai/docs. Use after changing the public API, docstrings, or README.md, or when the user says: sync langchain docs, update the diffbot provider page, push docs to langchain, regenerate the integration page."
-allowed-tools: Bash(python3:*), Bash(git:*), Bash(gh:*), Bash(make:*), Bash(cd:*)
+description: "Keep all Diffbot docs in sync: README.md in this repo and the three LangChain docs pages (providers, tools, retrievers). Use when code changes, when any doc page drifts, or when the user says: sync langchain docs, update the diffbot docs, sync the integration pages."
+allowed-tools: Bash(python3:*), Bash(git:*), Bash(gh:*), Bash(make:*), Read, Edit, Write
 ---
 
-# Sync the LangChain docs provider page
+# Sync Diffbot docs across all pages
 
-This repo owns the Diffbot integration page published on the LangChain docs site. The **single source of truth is [`README.md`](../../../README.md)**; the published page is `src/oss/python/integrations/providers/diffbot.mdx` in [`langchain-ai/docs`](https://github.com/langchain-ai/docs). This skill **generates** the `.mdx` page *from the README* (the README is GitHub-flavored Markdown; the page needs frontmatter and LangChain docs house style), writes it into a local `langchain-ai/docs` checkout, and opens a PR.
+## What this skill does
 
-Edit the content in `README.md` only — never hand-edit the page in `langchain-ai/docs`. The generated page is a derived artifact.
+Four documents describe the `langchain-diffbot` package. Keep them all accurate and consistent — update whichever ones need it, not just one.
+
+| File | Audience | Owns |
+|------|----------|------|
+| `README.md` (this repo) | GitHub / PyPI readers | Complete package reference — install, auth, all classes, examples |
+| `providers/diffbot.mdx` (langchain-docs) | Docs site visitors landing on Diffbot | Overview only: install, auth, components table, links to detail pages |
+| `tools/diffbot.mdx` (langchain-docs) | Docs site visitors looking for tools | Full tool documentation with examples |
+| `retrievers/diffbot.mdx` (langchain-docs) | Docs site visitors looking for retrievers | Full retriever documentation with examples |
+
+**Link, don't duplicate within langchain-docs.** The provider hub names every class and links to the tools/retrievers pages; the detail pages don't repeat install/auth. The README is for a different audience and channel (GitHub/PyPI) — it can be complete without violating this rule.
 
 ## Where the docs repo lives
 
-A local `langchain-ai/docs` checkout is expected at the sibling **`../langchain-docs`** by default (override with `$LANGCHAIN_DOCS_REPO` or `--docs-repo`). `sync.py` resolves and validates it and prints the target page path so you never hardcode it:
+A local `langchain-ai/docs` checkout is expected at the sibling **`../langchain-docs`** by default (override with `$LANGCHAIN_DOCS_REPO`). Verify it:
 
 ```bash
-TARGET="$(python3 .claude/skills/sync-langchain-docs/sync.py --path)"
+python3 .claude/skills/sync-langchain-docs/sync.py --path
 ```
 
-If that errors, the checkout is missing — ask the user for its path (or to clone `git@github.com:langchain-ai/docs.git` next to this repo).
-
-## When to run
-
-Run after anything that changes what the page should say:
-
-- A public class is added, renamed, or removed (`langchain_diffbot.__all__`).
-- An example, constructor argument, or behavior described in the README changes.
-- `README.md` itself was edited.
+If that errors, ask the user for its path or to clone `git@github.com:langchain-ai/docs.git` next to this repo.
 
 ## Steps
 
 <Steps>
 
-### Confirm the README is correct and current
+### Read all four files
 
-The page is only as good as the README. Update `README.md` first if needed, then verify the parity guard passes (it asserts the Components reference table matches `__all__`, every class is documented, and every example builds a client) and that the examples still run:
+Read every file before touching any of them:
+
+- `README.md`
+- `$(python3 .claude/skills/sync-langchain-docs/sync.py --repo)/src/oss/python/integrations/providers/diffbot.mdx`
+- `$(python3 .claude/skills/sync-langchain-docs/sync.py --repo)/src/oss/python/integrations/tools/diffbot.mdx`
+- `$(python3 .claude/skills/sync-langchain-docs/sync.py --repo)/src/oss/python/integrations/retrievers/diffbot.mdx`
+
+Also check what triggered the sync — git diff, the user's description, or a specific change — so you know what actually changed and can limit edits to what's necessary.
+
+### Identify what needs updating
+
+For each of the four files, decide independently whether it needs a change. Common triggers:
+
+- **New or renamed class** → update the components table in README + provider hub; add documentation to the appropriate detail page (tools or retrievers); update any import examples.
+- **Behavior change to a tool or retriever** → update README + the matching detail page.
+- **Auth model change** → update README + provider hub (both cover auth); check if detail pages reference auth.
+- **Install instructions change** → update README + provider hub.
+- **Example improvement** → update README; mirror to the matching detail page if it's more illustrative.
+- **Detail page drifted from the code** → update just that page.
+
+If only one file needs a change, only edit that file.
+
+### Apply the updates
+
+Edit each file that needs it. Rules per file:
+
+**README.md** — complete reference, no format restrictions. Run the parity guard after any change to ensure the components table and examples stay in sync with the package:
 
 ```bash
 uv run pytest tests/unit_tests/test_readme_parity.py tests/unit_tests/test_readme_examples.py -q
 ```
 
-Also check prose against the LangChain docs house style **locally**, before touching the docs repo — `make lint_prose` runs Vale with `.vale.ini` + `.github/vale/styles/` copied from `langchain-ai/docs`, so the README faces the same gate its generated page will:
+**providers/diffbot.mdx** — hub only. Structure:
+1. Frontmatter (`title`, `description`)
+2. Sync comment (keep it — see current file for wording)
+3. Short intro + API → class mapping table
+4. `## Installation` as `<CodeGroup>` with `pip` and `uv` tabs
+5. `## Authentication` — prose + `db = Diffbot(...)` snippet only; no usage examples
+6. One short section per class group (Retrievers, Tools, Chat model, Document loaders) — one sentence + import snippet + link to the detail page; no examples
+7. `## Components reference` table
 
-```bash
-make lint_prose
-```
+**tools/diffbot.mdx** — full tool docs. Include every tool class, usage examples, and any agent patterns. Link back to the provider hub for install/auth. Do not repeat retriever content.
 
-Fix `README.md` until these are green before generating the page.
+**retrievers/diffbot.mdx** — full retriever docs. Include both retriever classes, output shaping, LCEL chain usage. Link back to the provider hub for install/auth. Do not repeat tool content.
 
-### Resolve the target page path
+MDX formatting rules (Vale enforces these — violations block the docs CI):
+- Em dashes: no surrounding spaces (`word—word`, not `word — word`)
+- `prebuilt` not `pre-built`
+- Install blocks: `<CodeGroup>` with `pip` and `uv` tabs
+- Relative links to this repo become absolute `https://github.com/diffbot/langchain-diffbot/...` URLs
 
-```bash
-TARGET="$(python3 .claude/skills/sync-langchain-docs/sync.py --path)"
-```
+### Lint every changed MDX file
 
-### Generate the page from the README
-
-Read `README.md` and write the LangChain `.mdx` to `$TARGET`, applying these conversions (this is a content transform, not a copy):
-
-- **Frontmatter** — prepend:
-  ```mdx
-  ---
-  title: "Diffbot integrations"
-  description: "Integrate with Diffbot using LangChain Python."
-  ---
-  ```
-- **Source-of-truth note** — immediately after the frontmatter, add an MDX comment so reviewers know not to hand-edit the page:
-  ```mdx
-  {/* Generated from README.md in diffbot/langchain-diffbot by the
-      sync-langchain-docs skill. Edit there, not here. */}
-  ```
-- **Drop repo-only content** — omit the CI badge (top of the README) and the entire `## Development` section; they don't belong on the published page.
-- **Install block** — convert the single ` ```bash ` install fence into a `<CodeGroup>` with a `pip` and a `uv` tab:
-  ```mdx
-  <CodeGroup>
-  ```bash pip
-  pip install langchain-diffbot
-  ```
-
-  ```bash uv
-  uv add langchain-diffbot
-  ```
-  </CodeGroup>
-  ```
-- **Rewrite relative repo links** — turn `./examples`, `(./examples/...)`, and any other repo-relative link into an absolute `https://github.com/diffbot/langchain-diffbot/...` URL.
-- **Pass through unchanged** — all prose, ` ```python ` example blocks, and the Markdown tables (the API→class table and the `## Components reference` table) carry over as-is.
-
-### Lint the page with the docs repo's tooling
-
-House style is enforced by Vale in `langchain-ai/docs`. Run it against the generated page and fix any violations **in `README.md`**, then re-generate (previous step):
+The docs repo has its own Vale setup. Run it against each changed MDX:
 
 ```bash
 make -C "$(python3 .claude/skills/sync-langchain-docs/sync.py --repo)" \
   lint_prose FILES="src/oss/python/integrations/providers/diffbot.mdx"
 ```
 
-### Open the PR
+**If Vale or any other docs-repo validation catches a prose issue, fix it in `README.md` too** — the docs repo leads on prose quality and the README should follow. Fix violations and re-run until clean.
 
-Branch, commit, and open the PR from inside the docs repo. Summarize what changed in the page:
+### Commit and push
+
+Work from inside the docs repo. Reuse the existing `integration/diffbot` branch if it exists; otherwise create `docs/sync-diffbot-<topic>`.
 
 ```bash
-cd "${LANGCHAIN_DOCS_REPO:-../langchain-docs}"
-git checkout -b docs/sync-diffbot-provider
-git add src/oss/python/integrations/providers/diffbot.mdx
-git commit -m "docs: regenerate Diffbot provider page from langchain-diffbot README"
-git push -u origin docs/sync-diffbot-provider
-gh pr create --base main \
-  --title "docs: update Diffbot provider page" \
-  --body "Regenerates the Diffbot integration page from the canonical README.md in diffbot/langchain-diffbot. <summary of the change>. Generated with help from Claude Code."
+DOCS="${LANGCHAIN_DOCS_REPO:-../langchain-docs}"
+cd "$DOCS"
+git add <changed files>
+git commit -m "docs: <short summary of what changed and why>"
+git push
 ```
 
+Stage only the files you changed. If the branch already has an open PR, the push updates it automatically — no need to open a new one unless the user asks.
+
 </Steps>
-
-## Notes
-
-- The published page carries an MDX comment naming this repo's `README.md` as the source of truth, so reviewers know not to hand-edit it.
-- Keep the PR body focused on the "why": which API/README change drove the docs update.
-- If `langchain-ai/docs` already has an open Diffbot branch (for example `integration/diffbot`), reuse it instead of creating a new one — ask the user which branch to target.
