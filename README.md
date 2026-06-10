@@ -172,7 +172,7 @@ Every Diffbot API is also exposed as an agent-callable `BaseTool`. Hand a tool-c
 
 ### DiffbotWebSearchTool
 
-Runs a Diffbot web search and returns the result list — each item with `title`, `pageUrl`, `score`, and `content`. (Use `DiffbotWebSearchRetriever` when you want `Document` output instead.)
+Runs a [Diffbot web search](https://docs.diffbot.com/reference/web-search-get) and returns the result list — each item with `title`, `pageUrl`, `score`, and `content`. New accounts include 100,000 free web searches per month. (Use `DiffbotWebSearchRetriever` when you want `Document` output instead.)
 
 ```python
 import os
