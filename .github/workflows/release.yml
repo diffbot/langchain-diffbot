@@ -1,0 +1,103 @@
+name: Release
+
+# Builds the wheel and sdist and publishes them to PyPI. Triggered by pushing
+# a version tag (e.g. v0.2.1); also runnable manually for dry runs.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Re-pushing a tag (or re-dispatching) cancels an in-flight run for the same
+# ref so a stuck build can't pile up behind a newer attempt.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build distribution
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      # Fail fast if the tag doesn't match pyproject.toml's version, so the
+      # GitHub Release name can never disagree with the version published to PyPI.
+      - name: Check tag matches package version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          pkg=$(grep -m1 '^version' pyproject.toml | cut -d'"' -f2)
+          tag=${GITHUB_REF_NAME#v}
+          if [ "$pkg" != "$tag" ]; then
+            echo "::error::Tag v${tag} does not match pyproject.toml version ${pkg}. Bump pyproject.toml (e.g. 'make bump-patch') and re-tag."
+            exit 1
+          fi
+          echo "Tag and package version agree: ${pkg}"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build wheel and sdist
+        run: uv build
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  release:
+    name: Publish to PyPI and GitHub
+    needs: build
+    runs-on: ubuntu-latest
+    # Only publish for real tag pushes; workflow_dispatch runs just build + verify.
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - name: List artifacts
+        run: ls -lR dist
+
+      # This job runs on a fresh runner that never checked out the repo or ran
+      # the build job's setup, so uv isn't on PATH here — `uv publish` below
+      # needs its own install.
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+
+      - name: Publish to PyPI
+        env:
+          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
+        run: uv publish
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # This job doesn't check out the repo, so gh can't infer it from a local
+        # git remote — pass --repo explicitly on every gh call.
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          repo="${GITHUB_REPOSITORY}"
+          if gh release view "$tag" --repo "$repo" >/dev/null 2>&1; then
+            echo "Release $tag exists; uploading assets (clobbering)."
+            gh release upload "$tag" dist/* --repo "$repo" --clobber
+          else
+            echo "Creating release $tag."
+            gh release create "$tag" \
+              --repo "$repo" \
+              --title "$tag" \
+              --generate-notes \
+              dist/*
+          fi
