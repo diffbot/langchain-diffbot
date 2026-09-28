@@ -34,7 +34,7 @@ Then run the cells top to bottom.
 ## Installing outside this repo
 
 Inside the repo, `uv sync --extra examples` is all you need. From outside the
-repo, install the package with its examples extra (`diffbot-python` comes in as
+repo, install the package with its examples extra (the `diffbot` SDK comes in as
 a dependency from PyPI):
 
 ```bash

@@ -1,6 +1,6 @@
 """LangChain integration for Diffbot.
 
-Thin layer over the official `diffbot-python` SDK. Every public class takes a
+Thin layer over the official `diffbot` SDK. Every public class takes a
 pre-built `diffbot.Diffbot` (sync) and/or `diffbot.DiffbotAsync` (async) client
 via the `client` / `async_client` fields — build the client yourself (token,
 `timeout`, `transport=`, custom URLs), pass it in, and share one across many

@@ -49,7 +49,7 @@ You'll need:
 
 md("""## 1. Install
 
-`diffbot-python` comes in as a dependency from PyPI, so a single install pulls everything.""")
+The `diffbot` SDK comes in as a dependency from PyPI, so a single install pulls everything.""")
 
 code("""%pip install --quiet \\
     langchain-diffbot \\

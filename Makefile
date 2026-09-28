@@ -84,7 +84,7 @@ release: build
 
 # Smoke-test installs from each index in a throwaway venv.
 # `cd $$TMP` before running python so CWD doesn't shadow the venv install with
-# this repo's source. diffbot-python resolves from PyPI as a dependency.
+# this repo's source. The diffbot SDK resolves from PyPI as a dependency.
 # TestPyPI install still needs --extra-index-url so deps resolve from prod PyPI.
 verify-release-test:
 	@VERSION=$$(grep '^version' pyproject.toml | head -1 | cut -d'"' -f2) && \
