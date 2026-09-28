@@ -92,7 +92,7 @@ verify-release-test:
 	  uv venv --python 3.12 $$TMP/.venv >/dev/null 2>&1 && \
 	  uv pip install --quiet --python $$TMP/.venv/bin/python \
 	    --index-url https://test.pypi.org/simple/ \
-	    --extra-index-url https://pypi.org/simple/ \
+	    --extra-index-url https://pypi.org/simple/ --index-strategy unsafe-best-match \
 	    "langchain-diffbot==$$VERSION" && \
 	  (cd $$TMP && $$TMP/.venv/bin/python -c "from langchain_diffbot import DiffbotKnowledgeGraphRetriever; print('TestPyPI install OK:', DiffbotKnowledgeGraphRetriever.__name__)") && \
 	  rm -rf $$TMP
