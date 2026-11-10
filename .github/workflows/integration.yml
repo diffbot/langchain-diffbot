@@ -1,12 +1,15 @@
 name: Integration
 
 # Hits the live Diffbot APIs, so it consumes real quota and needs a token.
-# Kept off the per-PR path: nightly + on-demand only. Neither trigger can be
-# invoked by a fork PR, so the repo-level DIFFBOT_API_TOKEN secret is never
-# exposed to untrusted code.
+# Runs on push to main (trusted collaborators only), on a twice-monthly
+# drift check (1st and 15th at 14:17 UTC), and on-demand via workflow_dispatch.
+# Do NOT add a `pull_request` trigger — fork PRs should not run live tests,
+# and untrusted workflow code must never receive DIFFBOT_API_TOKEN.
 on:
+  push:
+    branches: [main]
   schedule:
-    - cron: "0 6 * * *"
+    - cron: "17 14 1,15 * *"
   workflow_dispatch:
 
 permissions:
