@@ -74,6 +74,15 @@ class DiffbotExtractLoader(_BaseDiffbotComponent, BaseLoader):
     fmt: str = "markdown"
     """Output format. `markdown` uses Diffbot's LLM-optimized mode."""
 
+    extract_options: dict[str, Any] = Field(default_factory=dict)
+    """Keyword options forwarded to `Diffbot.extract` for every URL.
+
+    Any of the SDK's extract options (`timeout`, `mode`, `fields`, `fallback`,
+    `discussion`, `paging`, `max_pages`, `natural_language`,
+    `summary_num_sentences`, `max_tags`, `tag_confidence`,
+    `category_confidence`, `use_proxy`, `extra`). Empty by default.
+    """
+
     document_mapper: ExtractDocumentMapper | None = None
     """Optional `(url, raw_response) -> Document` override."""
 
@@ -85,14 +94,18 @@ class DiffbotExtractLoader(_BaseDiffbotComponent, BaseLoader):
         """Yield one `Document` per URL, calling `extract` synchronously."""
         with self._sync_db() as db:
             for url in self.urls:
-                raw = db.extract(url, api=self.api, fmt=self.fmt)
+                raw = db.extract(
+                    url, api=self.api, fmt=self.fmt, **self.extract_options
+                )
                 yield self._to_doc(url, raw)
 
     async def alazy_load(self) -> AsyncIterator[Document]:
         """Yield one `Document` per URL, calling `extract` asynchronously."""
         async with self._async_db() as db:
             for url in self.urls:
-                raw = await db.extract(url, api=self.api, fmt=self.fmt)
+                raw = await db.extract(
+                    url, api=self.api, fmt=self.fmt, **self.extract_options
+                )
                 yield self._to_doc(url, raw)
 
 

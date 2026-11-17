@@ -116,3 +116,45 @@ def test_crawl_loader_user_can_override_watch() -> None:
         crawl_kwargs={"watch": False, "hops": 3},
     )
     assert loader._kwargs() == {"watch": False, "hops": 3}
+
+
+@respx.mock
+def test_extract_loader_passes_extract_options() -> None:
+    route = respx.get(ANALYZE_URL).mock(
+        return_value=httpx.Response(200, json={"objects": [{"text": "x"}]})
+    )
+    loader = DiffbotExtractLoader(
+        client=Diffbot(token="t"),
+        urls=["https://example.com"],
+        extract_options={"timeout": 5000, "fields": ["links", "meta"], "paging": False},
+    )
+    assert len(list(loader.lazy_load())) == 1
+    params = route.calls.last.request.url.params
+    assert params["timeout"] == "5000"
+    assert params["fields"] == "links,meta"
+
+
+@respx.mock
+async def test_extract_loader_alazy_load_passes_extract_options() -> None:
+    route = respx.get(ANALYZE_URL).mock(
+        return_value=httpx.Response(200, json={"objects": [{"text": "x"}]})
+    )
+    loader = DiffbotExtractLoader(
+        async_client=DiffbotAsync(token="t"),
+        urls=["https://example.com"],
+        extract_options={"timeout": 7000, "mode": "article"},
+    )
+    assert len([d async for d in loader.alazy_load()]) == 1
+    params = route.calls.last.request.url.params
+    assert params["timeout"] == "7000"
+    assert params["mode"] == "article"
+
+
+@respx.mock
+def test_extract_loader_default_sends_no_extra_options() -> None:
+    route = respx.get(ANALYZE_URL).mock(
+        return_value=httpx.Response(200, json={"objects": [{"text": "x"}]})
+    )
+    loader = DiffbotExtractLoader(client=Diffbot(token="t"), urls=["https://e.com"])
+    list(loader.lazy_load())
+    assert "fields" not in route.calls.last.request.url.params

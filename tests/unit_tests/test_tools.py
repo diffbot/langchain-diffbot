@@ -6,7 +6,7 @@ import json
 
 import httpx
 import respx
-from diffbot import Diffbot
+from diffbot import Diffbot, DiffbotAsync
 
 from langchain_diffbot import (
     DiffbotAskTool,
@@ -217,3 +217,33 @@ def test_ask_tool_aggregates_streamed_answer() -> None:
     tool = DiffbotAskTool(client=Diffbot(token="t"))
     out = tool.invoke({"question": "When was Diffbot founded?"})
     assert out == "Diffbot was founded in 2008."
+
+
+@respx.mock
+def test_extract_tool_passes_extract_options() -> None:
+    route = respx.get(ANALYZE_URL).mock(
+        return_value=httpx.Response(200, json={"objects": [{"text": "x"}]})
+    )
+    tool = DiffbotExtractTool(
+        client=Diffbot(token="t"),
+        extract_options={"timeout": 5000, "fields": ["links", "meta"]},
+    )
+    tool.invoke({"url": "https://example.com"})
+    params = route.calls.last.request.url.params
+    assert params["timeout"] == "5000"
+    assert params["fields"] == "links,meta"
+
+
+@respx.mock
+async def test_extract_tool_arun_passes_extract_options() -> None:
+    route = respx.get(ANALYZE_URL).mock(
+        return_value=httpx.Response(200, json={"objects": [{"text": "x"}]})
+    )
+    tool = DiffbotExtractTool(
+        async_client=DiffbotAsync(token="t"),
+        extract_options={"mode": "article", "timeout": 9000},
+    )
+    await tool.ainvoke({"url": "https://example.com"})
+    params = route.calls.last.request.url.params
+    assert params["mode"] == "article"
+    assert params["timeout"] == "9000"
