@@ -1,4 +1,12 @@
-.PHONY: format lint test test_integration typing build clean bump-patch bump-minor bump-major set-token-pypi set-token-testpypi release-test release verify-release-test verify-release
+.PHONY: dev-sdk format lint test test_integration typing build clean bump-patch bump-minor bump-major set-token-pypi set-token-testpypi release-test release verify-release-test verify-release
+
+# Dev-only: install the unreleased Diffbot SDK from a sibling checkout over the
+# synced env (no-op if ../diffbot-python is absent). TODO(sdk-release): remove
+# once diffbot>=3.3.0 is on PyPI. Pair with UV_NO_SYNC=true so `make test` etc.
+# don't re-resolve and replace it.
+dev-sdk:
+	@if [ -d ../diffbot-python ]; then uv pip install -e ../diffbot-python; \
+	else echo "../diffbot-python not found; skipping"; fi
 
 format:
 	uv run --group lint ruff format .
