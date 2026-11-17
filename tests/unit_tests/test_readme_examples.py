@@ -127,7 +127,7 @@ def test_readme_example_runs(
         pytest.skip(f"imports {sorted(unmockable)} — covered by the live suite")
 
     monkeypatch.setenv("DIFFBOT_API_TOKEN", "test-token")
-    respx_mock.get(DQL_URL).mock(return_value=httpx.Response(200, json=DQL_BODY))
+    respx_mock.post(DQL_URL).mock(return_value=httpx.Response(200, json=DQL_BODY))
     respx_mock.get(WEB_SEARCH_URL).mock(
         return_value=httpx.Response(200, json=WEB_SEARCH_BODY)
     )
