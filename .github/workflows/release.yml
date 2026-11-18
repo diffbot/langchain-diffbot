@@ -83,6 +83,10 @@ jobs:
         uses: astral-sh/setup-uv@v5
         with:
           python-version: "3.12"
+          # Nothing is resolved or installed in this job, so there is no cache to
+          # save; the post-job cache save fails here and marked successful
+          # releases red.
+          enable-cache: false
 
       - name: Publish to PyPI
         run: uv publish --trusted-publishing always
