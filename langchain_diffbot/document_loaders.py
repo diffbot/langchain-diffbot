@@ -11,7 +11,7 @@ from diffbot.crawl import CrawlEvent, CrawlEventType
 from diffbot.errors import JobError
 from langchain_core.document_loaders import BaseLoader
 from langchain_core.documents import Document
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from langchain_diffbot._base import _BaseDiffbotComponent
 
@@ -50,7 +50,13 @@ def _default_record_mapper(record: dict[str, Any]) -> Document | None:
 
 
 def _check_job_done(job_name: str, job: dict[str, Any]) -> bool:
-    """Return True when the job is terminal; raise `JobError` if it failed."""
+    """Return True when the job is terminal; raise `JobError` if it failed.
+
+    `crawl_get_job` returns `{}` for an unknown job; that is an error, not a
+    job that is "still running" (otherwise we'd poll until `poll_timeout`).
+    """
+    if not job:
+        raise JobError(job_name, f"Crawler job {job_name!r} not found")
     status = job.get("jobStatus") or {}
     if status.get("status", 0) in _CRAWL_RUNNING_STATUSES:
         return False
@@ -188,13 +194,27 @@ class DiffbotCrawlLoader(_BaseDiffbotComponent, BaseLoader):
     """Max seconds to wait for the job to finish; None waits forever."""
 
     download_type: str | None = None
-    """Report passed to `crawl_download(type=...)`, e.g. `"urls"`."""
+    """Report passed to `crawl_download(type=...)`.
+
+    `"urls"` is rejected: that report is CSV text, not records. Use the default
+    watch mode (`download=False`) for a URL-per-`Document` crawl.
+    """
 
     download_num: int | None = None
     """Cap on records passed to `crawl_download(num=...)`."""
 
     record_mapper: CrawlRecordMapper | None = None
     """Optional `(record) -> Document | None` override for downloaded records."""
+
+    @field_validator("download_type")
+    @classmethod
+    def _reject_urls_report(cls, v: str | None) -> str | None:
+        if v == "urls":
+            raise ValueError(
+                'download_type="urls" returns CSV text, not records; use the '
+                "default watch mode (download=False) to get one Document per URL"
+            )
+        return v
 
     def _kwargs(self) -> dict[str, Any]:
         kw = dict(self.crawl_kwargs)
@@ -205,8 +225,12 @@ class DiffbotCrawlLoader(_BaseDiffbotComponent, BaseLoader):
         mapper = self.event_mapper or _default_crawl_mapper
         return mapper(event)
 
-    def _map_record(self, record: dict[str, Any]) -> Document | None:
-        return (self.record_mapper or _default_record_mapper)(record)
+    def _records_to_docs(self, records: list[dict[str, Any]]) -> Iterator[Document]:
+        mapper = self.record_mapper or _default_record_mapper
+        for record in records:
+            doc = mapper(record)
+            if doc is not None:
+                yield doc
 
     def _deadline(self) -> float | None:
         if self.poll_timeout is None:
@@ -266,10 +290,7 @@ class DiffbotCrawlLoader(_BaseDiffbotComponent, BaseLoader):
             records = db.crawl_download(
                 name, format="json", type=self.download_type, num=self.download_num
             )
-            for record in records:
-                rec_doc = self._map_record(record)  # type: ignore[arg-type]
-                if rec_doc is not None:
-                    yield rec_doc
+        yield from self._records_to_docs(records)
 
     async def _download_async(self) -> AsyncIterator[Document]:
         async with self._async_db() as db:
@@ -288,7 +309,5 @@ class DiffbotCrawlLoader(_BaseDiffbotComponent, BaseLoader):
             records = await db.crawl_download(
                 name, format="json", type=self.download_type, num=self.download_num
             )
-            for record in records:
-                rec_doc = self._map_record(record)  # type: ignore[arg-type]
-                if rec_doc is not None:
-                    yield rec_doc
+        for rec_doc in self._records_to_docs(records):
+            yield rec_doc

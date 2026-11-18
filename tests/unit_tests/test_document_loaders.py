@@ -8,6 +8,7 @@ import respx
 from diffbot import Diffbot, DiffbotAsync
 from diffbot.crawl import CrawlEvent, CrawlEventType
 from diffbot.errors import JobError
+from langchain_core.documents import Document
 
 from langchain_diffbot import DiffbotCrawlLoader, DiffbotExtractLoader
 
@@ -267,3 +268,41 @@ def test_crawl_loader_default_path_does_not_download(mocker) -> None:  # type: i
     assert list(DiffbotCrawlLoader(client=db, site="https://e.com").lazy_load()) == []
     crawl.assert_called_once_with("https://e.com", watch=True)
     download.assert_not_called()
+
+
+def test_crawl_loader_download_raises_on_missing_job(mocker) -> None:  # type: ignore[no-untyped-def]
+    # crawl_get_job returns {} for an unknown job; don't poll it until timeout.
+    db, _, get_job, download = _crawl_stubs(mocker, [{}], [])
+    loader = DiffbotCrawlLoader(
+        client=db, site="https://example.com", download=True, job_name="typo"
+    )
+    with pytest.raises(JobError, match="not found"):
+        list(loader.lazy_load())
+    assert get_job.call_count == 1
+    download.assert_not_called()
+
+
+def test_crawl_loader_rejects_urls_download_type() -> None:
+    # The `urls` report is CSV text; iterating it as records would be garbage.
+    with pytest.raises(ValueError, match="urls"):
+        DiffbotCrawlLoader(
+            client=Diffbot(token="t"),
+            site="https://example.com",
+            download=True,
+            download_type="urls",
+        )
+
+
+def test_crawl_loader_record_mapper_can_skip(mocker) -> None:  # type: ignore[no-untyped-def]
+    db, *_ = _crawl_stubs(
+        mocker, [{"jobStatus": {"status": 9, "message": "done"}}], _RECORDS
+    )
+    loader = DiffbotCrawlLoader(
+        client=db,
+        site="https://example.com",
+        download=True,
+        record_mapper=lambda r: (
+            None if r["title"] == "One" else Document(page_content=r["text"])
+        ),
+    )
+    assert [d.page_content for d in loader.lazy_load()] == ["Page two"]
