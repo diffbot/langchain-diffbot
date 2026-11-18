@@ -60,8 +60,7 @@ jobs:
     runs-on: ubuntu-latest
     # Only publish for real tag pushes; workflow_dispatch runs just build + verify.
     if: startsWith(github.ref, 'refs/tags/')
-    # Must match the environment configured on PyPI's trusted publisher.
-    environment: pypi
+    # No GitHub environment: the PyPI trusted publisher has none configured.
     permissions:
       # Required for PyPI trusted publishing (OIDC).
       id-token: write
