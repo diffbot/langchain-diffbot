@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import httpx
+import pytest
 import respx
 from diffbot import Diffbot, DiffbotAsync
 from diffbot.crawl import CrawlEvent, CrawlEventType
+from diffbot.errors import JobError
 
 from langchain_diffbot import DiffbotCrawlLoader, DiffbotExtractLoader
 
@@ -158,3 +160,110 @@ def test_extract_loader_default_sends_no_extra_options() -> None:
     loader = DiffbotExtractLoader(client=Diffbot(token="t"), urls=["https://e.com"])
     list(loader.lazy_load())
     assert "fields" not in route.calls.last.request.url.params
+
+
+def _crawl_stubs(mocker, statuses: list[dict], records: list[dict]):  # type: ignore[no-untyped-def]
+    db = Diffbot(token="t")
+    started = mocker.patch.object(
+        db,
+        "crawl",
+        return_value=iter(
+            [CrawlEvent(CrawlEventType.JOB_CREATED, "now", {"job_name": "job1"})]
+        ),
+    )
+    get_job = mocker.patch.object(db, "crawl_get_job", side_effect=statuses)
+    download = mocker.patch.object(db, "crawl_download", return_value=records)
+    return db, started, get_job, download
+
+
+_RECORDS = [
+    {"text": "Page one", "title": "One", "pageUrl": "https://example.com/1"},
+    {"text": "Page two", "title": "Two", "pageUrl": "https://example.com/2"},
+]
+
+
+def test_crawl_loader_download_starts_polls_and_downloads(mocker) -> None:  # type: ignore[no-untyped-def]
+    db, started, get_job, download = _crawl_stubs(
+        mocker,
+        [{"jobStatus": {"status": 0}}, {"jobStatus": {"status": 9, "message": "done"}}],
+        _RECORDS,
+    )
+    loader = DiffbotCrawlLoader(
+        client=db,
+        site="https://example.com",
+        download=True,
+        poll_interval=0,
+        download_num=5,
+        crawl_kwargs={"hops": 1},
+    )
+    docs = list(loader.lazy_load())
+    started.assert_called_once_with("https://example.com", hops=1, watch=False)
+    assert get_job.call_count == 2
+    download.assert_called_once_with("job1", format="json", type=None, num=5)
+    assert [d.page_content for d in docs] == ["Page one", "Page two"]
+    assert docs[0].metadata["url"] == "https://example.com/1"
+    assert docs[0].metadata["title"] == "One"
+
+
+def test_crawl_loader_download_reuses_existing_job(mocker) -> None:  # type: ignore[no-untyped-def]
+    db, started, _, download = _crawl_stubs(
+        mocker, [{"jobStatus": {"status": 9, "message": "done"}}], _RECORDS
+    )
+    loader = DiffbotCrawlLoader(
+        client=db, site="https://example.com", download=True, job_name="existing"
+    )
+    assert len(list(loader.lazy_load())) == 2
+    started.assert_not_called()
+    assert download.call_args.args == ("existing",)
+
+
+def test_crawl_loader_download_raises_on_failed_job(mocker) -> None:  # type: ignore[no-untyped-def]
+    db, *_ = _crawl_stubs(
+        mocker, [{"jobStatus": {"status": 4, "message": "Job failed"}}], []
+    )
+    loader = DiffbotCrawlLoader(client=db, site="https://example.com", download=True)
+    with pytest.raises(JobError):
+        list(loader.lazy_load())
+
+
+def test_crawl_loader_download_times_out(mocker) -> None:  # type: ignore[no-untyped-def]
+    db, *_ = _crawl_stubs(mocker, [{"jobStatus": {"status": 0}}] * 50, [])
+    loader = DiffbotCrawlLoader(
+        client=db,
+        site="https://example.com",
+        download=True,
+        poll_interval=0,
+        poll_timeout=0,
+    )
+    with pytest.raises(TimeoutError):
+        list(loader.lazy_load())
+
+
+async def test_crawl_loader_download_async(mocker) -> None:  # type: ignore[no-untyped-def]
+    db = DiffbotAsync(token="t")
+
+    async def fake_crawl(site, **kwargs):  # type: ignore[no-untyped-def]
+        assert kwargs["watch"] is False
+        yield CrawlEvent(CrawlEventType.JOB_CREATED, "now", {"job_name": "job1"})
+
+    mocker.patch.object(db, "crawl", fake_crawl)
+    mocker.patch.object(
+        db,
+        "crawl_get_job",
+        side_effect=[{"jobStatus": {"status": 0}}, {"jobStatus": {"status": 9}}],
+    )
+    mocker.patch.object(db, "crawl_download", return_value=_RECORDS)
+    loader = DiffbotCrawlLoader(
+        async_client=db, site="https://example.com", download=True, poll_interval=0
+    )
+    docs = [d async for d in loader.alazy_load()]
+    assert [d.page_content for d in docs] == ["Page one", "Page two"]
+
+
+def test_crawl_loader_default_path_does_not_download(mocker) -> None:  # type: ignore[no-untyped-def]
+    db = Diffbot(token="t")
+    crawl = mocker.patch.object(db, "crawl", return_value=iter([]))
+    download = mocker.patch.object(db, "crawl_download")
+    assert list(DiffbotCrawlLoader(client=db, site="https://e.com").lazy_load()) == []
+    crawl.assert_called_once_with("https://e.com", watch=True)
+    download.assert_not_called()
