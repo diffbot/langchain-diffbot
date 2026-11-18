@@ -53,6 +53,16 @@ class DiffbotExtractTool(_BaseDiffbotComponent, BaseTool):
     )
     args_schema: type[BaseModel] = _DiffbotExtractInput
 
+    extract_options: dict[str, Any] = Field(default_factory=dict)
+    """Keyword options forwarded to `Diffbot.extract` on every call.
+
+    Any of the SDK's extract options (`timeout`, `mode`, `fields`, `fallback`,
+    `discussion`, `paging`, `max_pages`, `natural_language`,
+    `summary_num_sentences`, `max_tags`, `tag_confidence`,
+    `category_confidence`, `use_proxy`, `extra`). Empty by default. Set by the
+    developer, not the agent.
+    """
+
     @staticmethod
     def _shape_response(raw: dict[str, Any]) -> dict[str, Any]:
         objects = raw.get("objects") or []
@@ -74,7 +84,7 @@ class DiffbotExtractTool(_BaseDiffbotComponent, BaseTool):
     ) -> dict[str, Any]:
         try:
             with self._sync_db() as db:
-                raw = db.extract(url, api=api, fmt=fmt)
+                raw = db.extract(url, api=api, fmt=fmt, **self.extract_options)
         except ExtractionError as e:
             return {"error": str(e), "errorCode": e.error_code}
         return self._shape_response(raw)
@@ -88,7 +98,7 @@ class DiffbotExtractTool(_BaseDiffbotComponent, BaseTool):
     ) -> dict[str, Any]:
         try:
             async with self._async_db() as db:
-                raw = await db.extract(url, api=api, fmt=fmt)
+                raw = await db.extract(url, api=api, fmt=fmt, **self.extract_options)
         except ExtractionError as e:
             return {"error": str(e), "errorCode": e.error_code}
         return self._shape_response(raw)

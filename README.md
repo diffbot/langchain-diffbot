@@ -124,6 +124,8 @@ for doc in loader.lazy_load():
 
 `DiffbotExtractTool` returns a structured `{"error": ..., "errorCode": ...}` dict when Diffbot reports an extraction failure (200 with `errorCode`), so agents can react and try another URL instead of catching an exception. Auth / rate-limit errors propagate as `diffbot.errors.AuthError` / `RateLimitError`.
 
+Both `DiffbotExtractTool` and `DiffbotExtractLoader` take an `extract_options` dict that is forwarded to `Diffbot.extract` on every call: `timeout`, `mode`, `fields`, `fallback`, `discussion`, `paging`, `max_pages`, `natural_language`, `summary_num_sentences`, `max_tags`, `tag_confidence`, `category_confidence`, `use_proxy`, and `extra` (for `proxy` / `proxyAuth`). It is empty by default. Requires `diffbot>=3.4.0,<4`.
+
 ## Crawl a site
 
 `DiffbotCrawlLoader` drives a Diffbot crawl job and yields one `Document` per crawled URL. The `page_content` is the URL itself (the crawl API surfaces URLs, not page contents) — chain it with `DiffbotExtractLoader` to fetch the content of each URL.
@@ -138,6 +140,8 @@ loader = DiffbotCrawlLoader(client=db, site="https://www.diffbot.com")
 for doc in loader.lazy_load():
     print(doc.metadata["url"], doc.metadata["status"])
 ```
+
+By default the loader watches the job. Pass `download=True` for an opt-in start / poll / download path: it starts a job (or reuses `job_name`), polls until the job finishes (`poll_interval`, `poll_timeout`), then calls `crawl_download` and yields one `Document` per extracted record with real page content. `download_type`, `download_num`, and `record_mapper` tune the download.
 
 ## ChatDiffbot
 

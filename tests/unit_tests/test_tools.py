@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import json
+
 import httpx
 import respx
-from diffbot import Diffbot
+from diffbot import Diffbot, DiffbotAsync
 
 from langchain_diffbot import (
     DiffbotAskTool,
@@ -144,7 +146,7 @@ def test_entities_tool_returns_response_dict() -> None:
 @respx.mock
 def test_kg_tool_returns_raw_body() -> None:
     body = {"data": [{"score": 1.0, "entity": {"id": "E1", "name": "Acme"}}]}
-    respx.get(DQL_URL).mock(return_value=httpx.Response(200, json=body))
+    respx.post(DQL_URL).mock(return_value=httpx.Response(200, json=body))
     tool = DiffbotKnowledgeGraphTool(client=Diffbot(token="t"))
     out = tool.invoke({"query": "type:Organization", "size": 1})
     assert out["data"][0]["entity"]["id"] == "E1"
@@ -186,11 +188,12 @@ def test_ontology_tool_returns_error_dict_on_unknown_type() -> None:
 @respx.mock
 def test_dql_probe_tool_returns_hit_counts() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
-        assert request.url.params["size"] == "0"
-        hits = 5 if "Diffbot" in request.url.params["query"] else 100
+        body = json.loads(request.content)
+        assert body["size"] == 0
+        hits = 5 if "Diffbot" in body["query"] else 100
         return httpx.Response(200, json={"hits": hits, "results": 0})
 
-    respx.get(DQL_URL).mock(side_effect=handler)
+    respx.post(DQL_URL).mock(side_effect=handler)
     tool = DiffbotDQLProbeTool(client=Diffbot(token="t"))
     out = tool.invoke(
         {"queries": ['type:Organization name:"Diffbot"', "type:Organization"]}
@@ -214,3 +217,33 @@ def test_ask_tool_aggregates_streamed_answer() -> None:
     tool = DiffbotAskTool(client=Diffbot(token="t"))
     out = tool.invoke({"question": "When was Diffbot founded?"})
     assert out == "Diffbot was founded in 2008."
+
+
+@respx.mock
+def test_extract_tool_passes_extract_options() -> None:
+    route = respx.get(ANALYZE_URL).mock(
+        return_value=httpx.Response(200, json={"objects": [{"text": "x"}]})
+    )
+    tool = DiffbotExtractTool(
+        client=Diffbot(token="t"),
+        extract_options={"timeout": 5000, "fields": ["links", "meta"]},
+    )
+    tool.invoke({"url": "https://example.com"})
+    params = route.calls.last.request.url.params
+    assert params["timeout"] == "5000"
+    assert params["fields"] == "links,meta"
+
+
+@respx.mock
+async def test_extract_tool_arun_passes_extract_options() -> None:
+    route = respx.get(ANALYZE_URL).mock(
+        return_value=httpx.Response(200, json={"objects": [{"text": "x"}]})
+    )
+    tool = DiffbotExtractTool(
+        async_client=DiffbotAsync(token="t"),
+        extract_options={"mode": "article", "timeout": 9000},
+    )
+    await tool.ainvoke({"url": "https://example.com"})
+    params = route.calls.last.request.url.params
+    assert params["mode"] == "article"
+    assert params["timeout"] == "9000"
