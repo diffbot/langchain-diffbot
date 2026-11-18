@@ -1,9 +1,9 @@
 .PHONY: dev-sdk format lint test test_integration typing build clean bump-patch bump-minor bump-major set-token-pypi set-token-testpypi release-test release verify-release-test verify-release
 
-# Dev-only: install the unreleased Diffbot SDK from a sibling checkout over the
-# synced env (no-op if ../diffbot-python is absent). TODO(sdk-release): remove
-# once diffbot>=3.3.0 is on PyPI. Pair with UV_NO_SYNC=true so `make test` etc.
-# don't re-resolve and replace it.
+# Dev-only: install a local Diffbot SDK checkout over the synced env (no-op if
+# ../diffbot-python is absent). The release dependency is diffbot>=3.4.0,<4 from
+# PyPI. Pair with UV_NO_SYNC=true so `make test` doesn't re-resolve and replace it.
+# Do not commit the editable install.
 dev-sdk:
 	@if [ -d ../diffbot-python ]; then uv pip install -e ../diffbot-python; \
 	else echo "../diffbot-python not found; skipping"; fi

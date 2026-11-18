@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "langchain-diffbot"
-version = "0.2.0"
+version = "0.3.0"
 description = "LangChain integration for the Diffbot Knowledge Graph and Extract APIs"
 license = { text = "MIT" }
 readme = "README.md"
@@ -24,9 +24,10 @@ requires-python = ">=3.10,<4.0"
 dependencies = [
     "langchain-core>=1.0,<2.0",
     "httpx>=0.27,<1.0",
-    # TODO(sdk-release): diffbot 3.3.0 is not on PyPI yet. Once published, relock
-    # (`uv lock`) and drop the dev-only sibling install (`make dev-sdk`).
-    "diffbot>=3.3.0",
+    # Relock after 3.4.0 is on PyPI: `uv lock --upgrade-package diffbot`
+    # (needs the sibling ../langchain checkout). `make dev-sdk` is only for a
+    # pre-publish local install; do not commit that path.
+    "diffbot>=3.4.0,<4",
 ]
 
 [project.optional-dependencies]
@@ -75,8 +76,8 @@ include = ["/langchain_diffbot", "/README.md", "/LICENSE", "/pyproject.toml"]
 disallow_untyped_defs = true
 
 [[tool.mypy.overrides]]
-# The diffbot SDK doesn't ship a `py.typed` marker yet (checked against 3.3.0 on
-# feat/sdk-s1). TODO: drop this override once the SDK ships `py.typed`.
+# The diffbot SDK doesn't ship a `py.typed` marker yet (checked against 3.4.0).
+# Drop this override once the SDK ships `py.typed`.
 module = "diffbot.*"
 ignore_missing_imports = true
 
