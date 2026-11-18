@@ -205,16 +205,16 @@ wheels = [
 
 [[package]]
 name = "diffbot"
-version = "3.4.0rc0"
+version = "3.4.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
     { name = "httpx" },
     { name = "rich" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f1/33/db23518d8d602bee409e3dc50c42d17d6b432c580298a6a5587c8cdfdce4/diffbot-3.4.0rc0.tar.gz", hash = "sha256:5866529c085c2ce3064153bf135b40b5cd97f493d536d5415acc5dab18487256", size = 65653, upload-time = "2026-11-18T04:02:24.561Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1f/e9/479fd0f96144405f9fdce380c8fb933bfb7010a198d4f0c2a3e37e7e7d1c/diffbot-3.4.0.tar.gz", hash = "sha256:ce5ac1e5d896be79e5e46fcedf451e725b129bba45a88d82b44f151c6d538dc3", size = 65650, upload-time = "2026-11-18T21:56:46.012Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/39/c3/5fc7df5d9f8fd309f386f425a8bee9fcb07722a216acc5bdaf20c7eab7b2/diffbot-3.4.0rc0-py3-none-any.whl", hash = "sha256:5cd55605f864b19e3ac0e3b9d335bbb95b2038a5eadd8dbd274668087d09daa1", size = 54080, upload-time = "2026-11-18T04:02:23.241Z" },
+    { url = "https://files.pythonhosted.org/packages/39/d6/af72e476093aafb3604591b597d86c21278ba109e8f71322e4d252c74c78/diffbot-3.4.0-py3-none-any.whl", hash = "sha256:bfc72bb50a9f1e885f04b823ed84436a7cad9802f2d6b1cb1e03edd373025057", size = 54041, upload-time = "2026-11-18T21:56:44.608Z" },
 ]
 
 [[package]]
@@ -578,7 +578,7 @@ typing = [
 
 [package.metadata]
 requires-dist = [
-    { name = "diffbot", specifier = ">=3.4.0rc0,<4" },
+    { name = "diffbot", specifier = ">=3.4.0,<4" },
     { name = "fastapi", marker = "extra == 'examples'", specifier = ">=0.115,<1.0" },
     { name = "httpx", specifier = ">=0.27,<1.0" },
     { name = "langchain", marker = "extra == 'examples'", specifier = ">=1.3,<2.0" },

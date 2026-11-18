@@ -124,7 +124,7 @@ for doc in loader.lazy_load():
 
 `DiffbotExtractTool` returns a structured `{"error": ..., "errorCode": ...}` dict when Diffbot reports an extraction failure (200 with `errorCode`), so agents can react and try another URL instead of catching an exception. Auth / rate-limit errors propagate as `diffbot.errors.AuthError` / `RateLimitError`.
 
-Both `DiffbotExtractTool` and `DiffbotExtractLoader` take an `extract_options` dict that is forwarded to `Diffbot.extract` on every call: `timeout`, `mode`, `fields`, `fallback`, `discussion`, `paging`, `max_pages`, `natural_language`, `summary_num_sentences`, `max_tags`, `tag_confidence`, `category_confidence`, `use_proxy`, and `extra` (for `proxy` / `proxyAuth`). It is empty by default. Requires `diffbot>=3.4.0rc0,<4` (switch to `>=3.4.0,<4` for the unison publish).
+Both `DiffbotExtractTool` and `DiffbotExtractLoader` take an `extract_options` dict that is forwarded to `Diffbot.extract` on every call: `timeout`, `mode`, `fields`, `fallback`, `discussion`, `paging`, `max_pages`, `natural_language`, `summary_num_sentences`, `max_tags`, `tag_confidence`, `category_confidence`, `use_proxy`, and `extra` (for `proxy` / `proxyAuth`). It is empty by default. Requires `diffbot>=3.4.0,<4`.
 
 ## Crawl a site
 
