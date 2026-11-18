@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/diffbot/langchain-diffbot/actions/workflows/ci.yml/badge.svg)](https://github.com/diffbot/langchain-diffbot/actions/workflows/ci.yml)
 
-**LangChain docs:** [https://docs.langchain.com/oss/python/integrations/providers/diffbot](https://docs.langchain.com/oss/python/integrations/providers/diffbot)
+**Docs:** this README is the canonical reference. Listed on LangChain: [tools](https://docs.langchain.com/oss/python/integrations/tools), [retrievers](https://docs.langchain.com/oss/python/integrations/retrievers), [document loaders](https://docs.langchain.com/oss/python/integrations/document_loaders), and [all providers](https://docs.langchain.com/oss/python/integrations/providers/all_providers).
 
 A thin LangChain integration over the official [`diffbot-python`](https://github.com/diffbot/diffbot-python) SDK. Every Diffbot API gets the closest LangChain primitive:
 
